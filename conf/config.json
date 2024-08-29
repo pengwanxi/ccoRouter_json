@@ -1,0 +1,20 @@
+{
+    "appname": "ccoRouter",
+    "mqttinfo": {
+        "ip": "127.0.0.1",
+        "port": 1883,
+        "keepalive": 60,
+        "qos": 0,
+        "clientid": "",
+        "user": "",
+        "password": ""
+    },
+    "uart": {
+        "name": "/dev/ttyPLC1",
+        "baudrate": 9600,
+        "databit": 8,
+        "stopbit": 1,
+        "parity": "even",
+        "interval": 500
+    }
+}
