@@ -12,21 +12,24 @@ public:
     SerialPort();
     ~SerialPort();
 
-    bool init();
-    bool openPort();
-    void closePort();
-    bool configurePort(int baudRate, int dataBits, int stopBits, std::string parity);
-
-    ssize_t sendData(unsigned char *buf, int bufSize);
-
-    ssize_t receiveData(unsigned char *buf, int bufSize);
-
     std::string portName;
     int baudRate;
     int dataBit;
     int stopBit;
     std::string parity;
     int interval;
+
+    bool init();
+    bool openPort();
+    void closePort();
+    bool configurePort(int baudRate, int dataBits, int stopBits, std::string parity);
+
+    ssize_t sendData(char *buf, int bufSize);
+    ssize_t receiveData(char *buf, int bufSize);
+
+    bool devNodeExist();
+
+    int isOpen; // 串口是否打开 true 打开  false 关闭
 
 private:
     int fd;

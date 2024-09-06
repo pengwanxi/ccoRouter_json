@@ -149,9 +149,12 @@ int protocol_gw1376_2_pos_valid_buf(char *buf, int len,
 
     while (len - pos > 0)
     {
+
+        // dzlog_info("buf[%d] : [%02x] ", pos, buf[pos]);
         if (buf[pos] == 0x68)
         {
             int tmp_len = MAKEWORD(buf[pos + 1], buf[pos + 2]);
+
             if (tmp_len > (len - pos))
             {
                 pos++;
@@ -218,6 +221,9 @@ int protocol_gw1376_2_find_valid_buf(char *buf, int len,
                                      PROTOCOL_GW1376_2_DATA *pdata, int pos)
 {
     pos = protocol_gw1376_2_pos_valid_buf(buf, len, pdata, pos);
+
+    dzlog_info("pos : [ %d ]", pos);
+
     PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
     if (pos < 0 || pos > len)
     {
@@ -225,8 +231,8 @@ int protocol_gw1376_2_find_valid_buf(char *buf, int len,
         return -1;
     }
 
-    dzlog_debug("%s len=%.3d:", __FUNCTION__, precv->value_len);
-    log_debug_frame(buf + pos, precv->value_len);
+    // dzlog_debug("%s len=%.3d:", __FUNCTION__, precv->value_len);
+    // log_debug_frame(buf + pos, precv->value_len);
 
     if (protocol_gw1376_2_check_buf(buf + pos, precv->value_len, pdata) < 0)
     {
@@ -273,7 +279,7 @@ char protocol_gw1376_unpack_ctrl_data(PROTOCOL_GW1376_2_DATA *pdata)
     precv->dir = BIT_GET(precv->ctrl_region, 7);
     precv->prm = BIT_GET(precv->ctrl_region, 6);
 
-    dzlog_debug("comm_type=%d dir=%d prm=%d", precv->comm_type, precv->dir,
+    dzlog_debug("%s : [comm_type=%d , dir=%d , prm=%d] ", __FUNCTION__, precv->comm_type, precv->dir,
                 precv->prm);
     return 0;
 }
@@ -365,19 +371,19 @@ int protocol_gw1376_unpack_user_info_region(PROTOCOL_GW1376_2_DATA *pdata)
 
     /* data0 */
     precv->route_mode = BIT_GET(pinfo->data[0], 0);
-    dzlog_notice("rounte_mode=%d", precv->route_mode);
+    // dzlog_notice("rounte_mode=%d", precv->route_mode);
 
     precv->subnode = BIT_GET(pinfo->data[0], 1);
-    dzlog_notice("subnode=%d", precv->subnode);
+    // dzlog_notice("subnode=%d", precv->subnode);
 
     precv->comm_module_flag = BIT_GET(pinfo->data[0], 2);
-    dzlog_notice("comm_module_flag=%d", precv->comm_module_flag);
+    // dzlog_notice("comm_module_flag=%d", precv->comm_module_flag);
 
     precv->conflict = BIT_GET(pinfo->data[0], 3);
-    dzlog_notice("conflict=%d", precv->conflict);
+    // dzlog_notice("conflict=%d", precv->conflict);
 
     precv->relay_level = (pinfo->data[0] >> 4);
-    dzlog_notice("relay_level=%d", precv->relay_level);
+    // dzlog_notice("relay_level=%d", precv->relay_level);
     /* if (precv->comm_module_flag == GW1376_2_STA) { */
     /*     if (precv->relay_level != pdev_data->relay_addrs_num) { */
     /*         dzlog_notice("warn:recv relay_level=%d config relay_level=%d", */
@@ -386,41 +392,29 @@ int protocol_gw1376_unpack_user_info_region(PROTOCOL_GW1376_2_DATA *pdata)
     /* } */
     /* data1 */
     precv->channel = pinfo->data[1] & 0x0f;
-    dzlog_debug("channel=%d", precv->channel);
+    // dzlog_debug("channel=%d", precv->channel);
 
     precv->coding = pinfo->data[1] >> 4;
-    dzlog_debug("coding=%d", precv->coding);
+    // dzlog_debug("coding=%d", precv->coding);
 
     /* data2 */
     precv->bytes_count = pinfo->data[2];
-    dzlog_debug("bytes_count=%d", precv->bytes_count);
+    // dzlog_debug("bytes_count=%d", precv->bytes_count);
 
     /* data3-4 */
     baud = MAKEWORD(pinfo->data[3], pinfo->data[4]);
-    dzlog_debug("baud=%d", precv->comm_baud);
+    // dzlog_debug("baud=%d", precv->comm_baud);
 
     precv->comm_baud_flag = BIT_GET(baud, 15);
-    dzlog_debug("baud_flag=%d", precv->comm_baud_flag);
+    // dzlog_debug("baud_flag=%d", precv->comm_baud_flag);
 
     /* data5 */
     int buf_count = (unsigned char)pinfo->data[5];
-    dzlog_debug("buf_count=%d", (unsigned char)pinfo->data[5]);
+    // dzlog_debug("buf_count=%d", (unsigned char)pinfo->data[5]);
     if (!precv->prm)
     {
-        /* GW13762_TASK_DATA *ptask_data = gw13762_task_find(&pdata->task, buf_count); */
-        GW13762_TASK_DATA *ptask_data = gw13762_task_head(&pdata->task);
-        if (NULL == ptask_data)
-        {
-            dzlog_notice("%s error data buf_count=%d task_data null",
-                         __FUNCTION__, pdata->buf_count);
-            return -1;
-        }
-        else
-        {
-            memcpy(&precv->task_data, ptask_data, sizeof(GW13762_TASK_DATA));
-            /* gw13762_task_remove(&pdata->task, buf_count); */
-            gw13762_task_remove(&pdata->task, ptask_data->index);
-        }
+        //GW13762_TASK_DATA *ptask_data = gw13762_task_find(&pdata->task, buf_count);
+        precv->recvIndex = buf_count;
     }
     else
     {
@@ -428,6 +422,10 @@ int protocol_gw1376_unpack_user_info_region(PROTOCOL_GW1376_2_DATA *pdata)
         dzlog_notice("%s error data buf_count=%d auto up",
                      __FUNCTION__, pdata->buf_count);
     }
+
+    dzlog_info("rounte_mode = %d , subnode = %d ,comm_module_flag = %d ,conflict = %d ,relay_level = %d , channel = %d ,coding = %d , bytes_count = %d , baud = %d , baud_flag = %d ,buf_count = %d",
+               precv->route_mode, precv->subnode, precv->comm_module_flag, precv->conflict,
+               precv->relay_level, precv->channel, precv->coding, precv->bytes_count, precv->comm_baud, precv->comm_baud_flag, pinfo->data[5]);
     /* if ((u08_t)pinfo->data[5] != pdata->buf_count) { */
     /*     /\* pdata->send.subnode_auto_up = true; *\/ */
     /*     /\* protocol_gw1376_2_data_set_data_type( *\/ */
@@ -591,12 +589,12 @@ protocol_gw1376_unpack_user_apply_region(PROTOCOL_GW1376_2_DATA *pdata)
 
     papplydata->AFN = precv->apply_data[index];
     index++;
-    dzlog_debug("AFN=%x", papplydata->AFN);
+    // dzlog_debug("AFN=%x", papplydata->AFN);
 
     papplydata->Fn = protocol_gw1376_2_cal_fn(precv->apply_data[index],
                                               precv->apply_data[index + 1]);
     index += 2;
-    dzlog_debug("Fn=F%x", papplydata->Fn);
+    // dzlog_debug("Fn=F%x", papplydata->Fn);
 
     papplydata->unit_len = precv->apply_data_len - index;
     if (papplydata->unit_len > 0)
@@ -607,9 +605,9 @@ protocol_gw1376_unpack_user_apply_region(PROTOCOL_GW1376_2_DATA *pdata)
         index += papplydata->unit_len;
     }
 
-    dzlog_debug("unit_len=%d unit_buf:", papplydata->unit_len);
-    log_debug_frame(papplydata->unit_buf, papplydata->unit_len);
-
+    // dzlog_debug("unit_len=%d unit_buf:", papplydata->unit_len);
+    // log_debug_frame(papplydata->unit_buf, papplydata->unit_len);
+    dzlog_info("%s : [ AFN = %x , Fn = F%x , unit_len=%d ]", __FUNCTION__, papplydata->AFN, papplydata->Fn, papplydata->unit_len);
     return index;
 }
 
@@ -627,13 +625,13 @@ int protocol_gw1376_pack_user_data(char *buf, int *len,
     int index = 0;
 
     if (psend->comm_module_flag == GW1376_2_STA)
-        protocol_gw1376_pack_user_addr_region(&psend->addr_region, pdata);
+        protocol_gw1376_pack_user_addr_region(&psend->addr_region, pdata); // 操作从节点要写地址
 
     protocol_gw1376_pack_user_info_region(&psend->info_region, pdata);
     memcpy(buf, psend->info_region.data, 6);
     index += 6;
 
-    if (psend->comm_module_flag == GW1376_2_STA)
+    if (psend->comm_module_flag == GW1376_2_STA) // 从节点中继地址
     {
         int i;
 
@@ -647,16 +645,15 @@ int protocol_gw1376_pack_user_data(char *buf, int *len,
         }
 
         memcpy(buf + index, psend->addr_region.dest, 6);
+        index += 6;
     }
-    index += 6;
 
     protocol_gw1376_pack_user_apply_region(&psend->apply_region, pdata);
     memcpy(buf + index, psend->apply_data, psend->apply_data_len);
     index += psend->apply_data_len;
 
     *len = index;
-
-    dzlog_debug("%s %d", __FUNCTION__, psend->info_region.data[0]);
+    // dzlog_debug("%s %d", __FUNCTION__, psend->info_region.data[0]);
     return index;
 }
 
@@ -673,8 +670,8 @@ int protocol_gw1376_unpack_user_data(char *buf, int len,
     PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
     int index = 0;
 
-    dzlog_debug("parse user_data :");
-    log_debug_frame(buf, len);
+    // dzlog_debug("parse user_data :");
+    // log_debug_frame(buf, len);
 
     memcpy(precv->info_region.data, buf + index, 6);
     if (protocol_gw1376_unpack_user_info_region(pdata) < 0)
@@ -733,41 +730,10 @@ int protocol_gw1376_pack_frame_data(char *buf, int *len,
     buf[index++] = 0x16;
     *len = index;
 
-    /* if (comm_data_get_protocol_state(&pdata->pcomm->data) == */
-    /*     PROTOCOL_STATE_BROADCAST) { */
-    /*     pdata->isbroadcast = true; */
-
-    /*     /\* 米特当645时 需用此广播*\/ */
-    /*     if (psend->apply_region.unit_buf[0] == 0x02) { */
-    /*         protocol_gw1376_AFN05_Fn03_down(pdata); */
-    /*     } */
-    /*     protocol_gw1376_pack_user_data(pdata->user_data_buf, */
-    /*                                    &pdata->user_data_len, pdata); */
-
-    /*     buf[index++] = 0x68; */
-
-    /*     data_len = 6 + pdata->user_data_len; */
-    /*     buf[index++] = LOBYTE(data_len); */
-    /*     buf[index++] = HIBYTE(data_len); */
-
-    /*     buf[index++] = psend->ctrl_region; */
-
-    /*     memcpy(&buf[index], psend->info_region.data, 6); */
-    /*     memcpy(&buf[index], pdata->user_data_buf, pdata->user_data_len); */
-    /*     index += pdata->user_data_len; */
-
-    /*     buf[index] = */
-    /*         cal_cs((unsigned char *)(buf + *len + 3), index - *len - 3); */
-    /*     index++; */
-
-    /*     buf[index++] = 0x16; */
-    /*     *len = index; */
-    /* } */
-
     dzlog_debug("%s %d", __FUNCTION__, psend->info_region.data[0]);
     pdata->issending = true;
     pdata->sending_time = 0;
-    //pdata->psend_dev = comm_data_get_current_dev(&pdata->pcomm->data);
+    // pdata->psend_dev = comm_data_get_current_dev(&pdata->pcomm->data);
 
     pdata->resend_len = *len;
     memcpy(pdata->resend_buf, buf, pdata->resend_len);

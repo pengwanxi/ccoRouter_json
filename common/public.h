@@ -30,23 +30,24 @@
 void public_stob(const char *pstr, unsigned char *pbcd,
                  int len);
 
+// 反转数组
+void reverseHexArray(char *outArray, char *hexArray, int length);
 /*校验和*/
 unsigned char cal_cs(const unsigned char *buf, int len);
 
-    /* /\** */
-    /*  *  \brief 10进制转bcd */
-    /*  *  \param 10进制字符 */
-    /*  *  \return bcd 码 */
-    /*  *\/ */
-    /* u08_t dec2bcd(u08_t d); */
+/* /\** */
+/*  *  \brief 10进制转bcd */
+/*  *  \param 10进制字符 */
+/*  *  \return bcd 码 */
+/*  *\/ */
+/* u08_t dec2bcd(u08_t d); */
 
-    /* /\** */
-    /*  *  \brief bcd转16进制 */
-    /*  *  \param bcd */
-    /*  *  \return 16进制 */
-    /*  *\/ */
-    /* u08_t bcd2dec(u08_t c); */
-
+/* /\** */
+/*  *  \brief bcd转16进制 */
+/*  *  \param bcd */
+/*  *  \return 16进制 */
+/*  *\/ */
+/* u08_t bcd2dec(u08_t c); */
 
 /* /\** */
 /*  *  \brief 获取并赋值crc */

@@ -23,7 +23,21 @@ SerialPort::~SerialPort()
 
 bool SerialPort::init()
 {
-    return openPort();
+    isOpen = openPort();
+    return isOpen;
+}
+
+bool SerialPort::devNodeExist()
+{
+
+    if (access(portName.c_str(), F_OK) == 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 bool SerialPort::openPort()
@@ -34,7 +48,6 @@ bool SerialPort::openPort()
         std::cerr << "Error opening serial port " << portName << ": " << strerror(errno) << std::endl;
         return false;
     }
-
     return configurePort(baudRate, dataBit, stopBit, parity);
 }
 
@@ -204,7 +217,7 @@ bool SerialPort::configureTermios(int baudRate, int dataBits, int stopBits, std:
     return true;
 }
 
-ssize_t SerialPort::sendData(unsigned char *buf, int bufSize)
+ssize_t SerialPort::sendData(char *buf, int bufSize)
 {
 
     int n;
@@ -218,7 +231,7 @@ ssize_t SerialPort::sendData(unsigned char *buf, int bufSize)
     return sum;
 }
 
-ssize_t SerialPort::receiveData(unsigned char *buf, int bufSize)
+ssize_t SerialPort::receiveData(char *buf, int bufSize)
 {
 
     int ret = 0;

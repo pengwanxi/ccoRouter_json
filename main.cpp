@@ -1,16 +1,17 @@
-#include <stdio.h>
-#include <thread>
+
 #include "appcontrol.h"
 #include "zlog.h"
 #include <iostream>
+#include <stdio.h>
+#include <thread>
 
 int main()
-{
+{   
     zlog_category_t *c;
     std::string path = CONFIGPATH;
     path = path + "zlog.conf";
 
-    int zinit = zlog_init(path.c_str());
+    int zinit = dzlog_init(path.c_str(),"ccoRouter");
     // std::cout << "zlog path" << path << std::endl;
     // printf("zlog init %d\n", zinit);
     c = zlog_get_category("main");

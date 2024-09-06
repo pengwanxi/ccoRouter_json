@@ -6,6 +6,10 @@ PLATFORM = linux/arm/v7
 # tool macros
 CC = arm-linux-gnueabihf-g++
 CXX = arm-linux-gnueabihf-gcc
+
+#CC = g++
+#CXX = gcc
+
 CFLAGS := -std=c++11
 CXXFLAGS := # FILL: compile flags
 DBGFLAGS := -g -O0 -Wall 

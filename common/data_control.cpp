@@ -1,7 +1,11 @@
 #include "data_control.h"
 #include "define.h"
 #include "globalbase.h"
-// #include "cJSON.h"
+
+#include "protocol_gw1376_2.h"
+#include "protocol_gw1376_2_data.h"
+#include "cJSON.h"
+
 #include <array>
 #include <string>
 #include <iostream>
@@ -10,8 +14,10 @@
 #include <sys/utsname.h>
 #include <thread>
 
-DataControl::DataControl(std::string devSn, FRP_INFO *frpInfo)
+DataControl::DataControl(std::string appname, FRP_INFO *frpInfo)
 {
+
+    m_appName = appname;
     m_mInfo = new MQTT_INFO;
     m_mInfo->nport = 0;
     m_mInfo->nkeepalive = 60;
@@ -21,12 +27,13 @@ DataControl::DataControl(std::string devSn, FRP_INFO *frpInfo)
     m_callback = NULL;
     m_datacontrol = this;
 
-    m_devSn = devSn;
     m_frpInfo = frpInfo;
 
     m_isStart = false;
     m_timeCount = 0;
 
+    // 1376.2数据初始化
+    protocol_gw1376_2_init((void *)get_pdata());
     m_ccoCtl = new CcoControl();
 }
 
@@ -42,9 +49,26 @@ int DataControl::init(MqttControl *mqttControl)
 
     m_mqttControl = mqttControl;
 
-    // frpcStart();
+    m_ccoCtl->setMqttControl(mqttControl, m_mInfo);
 
     return 0;
+}
+
+void DataControl::dataInit()
+{
+    std::string topic = "test/ccoRouter/JSON/get/request/acqQueryFiles";
+    cJSON *root = cJSON_CreateObject();
+    addResObject(root, 1);
+    cJSON_AddItemToObject(root, "prio", cJSON_CreateNumber(1));
+    cJSON_AddItemToObject(root, "startIndex", cJSON_CreateNumber(1));
+    cJSON_AddItemToObject(root, "curMeterNum", cJSON_CreateNumber(255));
+    char *payload = NULL;
+    payload = cJSON_Print(root);
+
+    m_ccoCtl->dataInit(topic.c_str(), payload);
+
+    cJSON_Delete(root);
+    free(payload);
 }
 
 void DataControl::set_timeout(int timeout)
@@ -96,12 +120,18 @@ void DataControl::callbackMqttMessage(char *topic, char *message)
     m_datacontrol->parsingMqttMessage(topic, message);
 }
 
+void DataControl::packSendMqttMessage(void *data, int dataSize)
+{
+
+    m_ccoCtl->packSendMqttMsg(data, dataSize);
+}
+
 void DataControl::parsingMqttMessage(const char *topic, const char *message)
 {
     zlog_info(m_logc, "topic : %s ; message :\n%s ", topic, message);
 
     m_ccoCtl->parseCcoData(topic, message);
-    
+
     return;
     /*
     for (const auto &topicStr : topicStrs)

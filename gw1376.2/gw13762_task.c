@@ -40,10 +40,10 @@ int gw13762_task_init(GW13762_TASK *pdata)
     }
 
     pdata->plist = list_new();
+    pdata->plist->len = 0;
     pdata->plist->match = task_data_equal;
     pdata->plist->free = task_data_free;
-    gw13762_task_read_queue_init(pdata);
-    // gw13762_task_set_queue_init(pdata);
+    // gw13762_task_read_queue_init(pdata);
     return 0;
 }
 
@@ -56,6 +56,7 @@ int gw13762_task_destroy(GW13762_TASK *pdata)
 
 bool gw13762_task_idle(GW13762_TASK *pdata)
 {
+    
     if (pdata->plist->len > 0)
     {
         return false;
@@ -104,7 +105,7 @@ int gw13762_task_push(GW13762_TASK *pdata, GW13762_TASK_DATA *ptask_data)
         return -1;
     }
 
-    return 0;
+    return ptask_data->index;
 }
 
 int gw13762_task_push_head(GW13762_TASK *pdata, GW13762_TASK_DATA *ptask_data)

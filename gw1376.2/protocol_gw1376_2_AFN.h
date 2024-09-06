@@ -274,7 +274,7 @@ int protocol_gw1376_AFN10_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata);
 /**
  *  \brief AFN10 F2 数据下发
  *
- *  读取从节点数量
+ *  读取从节点信息
  *
  *  \param
  *  \return <0 失败
@@ -285,7 +285,7 @@ int protocol_gw1376_AFN10_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata);
 /**
  *  \brief AFN10 F2 数据处理
  *
- *  读取从节点数量
+ *  读取从节点信息
  *
  *  \param
  *  \return <0 失败
@@ -344,7 +344,6 @@ int protocol_gw1376_AFN10_Fn04_up(PROTOCOL_GW1376_2_DATA *pdata);
  *  \return =0 成功
  */
 int protocol_gw1376_AFN11_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata);
-
 /**
  *  \brief AFN11 F1 数据处理
  *
@@ -355,6 +354,27 @@ int protocol_gw1376_AFN11_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata);
  *  \return =0 成功
  */
 int protocol_gw1376_AFN11_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata);
+
+/**
+ *  \brief AFN11 F2 数据下发
+ *
+ *  删除从节点
+ *
+ *  \param
+ *  \return <0 失败
+ *  \return =0 成功
+ */
+int protocol_gw1376_AFN11_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata);
+/**
+ *  \brief AFN11 F2 数据处理
+ *
+ *  删除从节点
+ *
+ *  \param
+ *  \return <0 失败
+ *  \return =0 成功
+ */
+int protocol_gw1376_AFN11_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata);
 
 /**
  *  \brief AFN11 F1 数据下发

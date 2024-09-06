@@ -30,9 +30,12 @@ public:
 
 public:
     static DataControl *m_datacontrol;
+    void packSendMqttMessage(void *data, int dataSize);
+
+    void dataInit();
+
     void frpcStop(void *userdata); // frpc程序关闭
     bool frpcStart();
-
     /*
      *设备信息响应 type : 1主动上送 2响应
      */
@@ -48,8 +51,7 @@ private:
     void stopFrpcThreadFunc();
 
 private:
-
-    CcoControl *m_ccoCtl;   //cco数据控制
+    CcoControl *m_ccoCtl; // cco数据控制
 
     std::string m_devSn;
     std::string m_appName;

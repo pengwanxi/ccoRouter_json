@@ -1,7 +1,7 @@
 {
     "appname": "ccoRouter",
     "mqttinfo": {
-        "ip": "127.0.0.1",
+        "ip": "172.17.0.1",
         "port": 1883,
         "keepalive": 60,
         "qos": 0,

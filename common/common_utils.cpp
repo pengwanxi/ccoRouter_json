@@ -1,7 +1,105 @@
 
 #include "common_utils.h"
-#include "define.h"
 #include "globalbase.h"
+#include "cJSON.h"
+
+// 反转数组
+
+void reverseHexArraycom(char *outArray, char *hexArray, int length)
+{
+	int start = 0;
+	int end = length - 1;
+
+	while (start < length)
+	{
+		// 交换hexArray[start]和hexArray[end]
+		outArray[start] = hexArray[end];
+		start++;
+		end--;
+	}
+}
+
+// 将单个十六进制字符转换为对应的数值
+char hexCharToValue(char c)
+{
+	if (c >= '0' && c <= '9')
+	{
+		return c - '0';
+	}
+	else if (c >= 'A' && c <= 'F')
+	{
+		return c - 'A' + 10;
+	}
+	else if (c >= 'a' && c <= 'f')
+	{
+		return c - 'a' + 10;
+	}
+	else
+	{
+		return 0; // 非法字符处理
+	}
+}
+
+// 将十六进制字符串转换为字节数组
+void stringToHexArray(const char *hexStr, char *hexArray, int *length)
+{
+	int hexStrLen = 0;
+	while (hexStr[hexStrLen] != '\0')
+	{
+		hexStrLen++;
+	}
+
+	if (hexStrLen % 2 != 0)
+	{
+		// 如果字符串长度不是偶数，则无法正确转换为字节
+		printf("Error: Hex string length is not even.\n");
+		*length = 0;
+		return;
+	}
+
+	*length = hexStrLen / 2; // 每两个字符表示一个字节
+
+	for (int i = 0; i < *length; i++)
+	{
+		// 将每两个字符转换为一个字节
+		unsigned char highNibble = hexCharToValue(hexStr[2 * i]) << 4; // 高四位
+		unsigned char lowNibble = hexCharToValue(hexStr[2 * i + 1]);   // 低四位
+		hexArray[i] = highNibble | lowNibble;						   // 合并为一个字节
+	}
+}
+
+// 16进制数组转字符串
+void hexArrayToString(const char *hexArray, int length, char *outStr)
+{
+	const char hexDigits[] = "0123456789ABCDEF"; // 用于将每个字节转换为对应的十六进制字符
+
+	for (int i = 0; i < length; i++)
+	{
+		// 将高四位和低四位转换为对应的十六进制字符
+		outStr[i * 2] = hexDigits[(hexArray[i] >> 4) & 0x0F]; // 高四位
+		outStr[i * 2 + 1] = hexDigits[hexArray[i] & 0x0F];	  // 低四位
+	}
+
+	// 字符串结束符
+	outStr[length * 2] = '\0';
+}
+
+void zlog_print(zlog_category_t *zlogU, char *msg, const char *buf, int bufSize)
+{
+	/*
+	char *printBuf = (char *)malloc(bufSize * sizeof(char));
+	if (printBuf == NULL)
+	{
+		zlog_error(zlogU, "malloc failed!");
+		return;
+	}*/
+	char printBuf[1024] = {0};
+	for (int i = 0; i < bufSize; i++)
+	{
+		sprintf(printBuf + (i * 3), "%02hhx ", buf[i]);
+	}
+	zlog_info(zlogU, msg, printBuf);
+}
 
 int getProcessIdByName(const std::string &processName)
 {
@@ -64,7 +162,7 @@ void sysOutputTopic(const char *sendName, const char *recvName, const char *set,
 void sysOutputTopic(std::vector<std::string> vectopic, char *topic) // JSon有很多
 {
 	std::string temp;
-	temp += "/";
+	// temp += "/";
 	for (size_t i = 0; i < vectopic.size(); i++)
 	{
 		if (i + 1 == vectopic.size())

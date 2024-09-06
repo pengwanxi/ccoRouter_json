@@ -4,7 +4,6 @@
 #include "gw13762_task.h"
 #include "public.h"
 #include "maths.h"
-
 /**
  *  \brief 下行CCO 无单元数据
  *  \param pdata
@@ -61,25 +60,32 @@ protoco_gw1376_2_cco_down_unit(PROTOCOL_GW1376_2_DATA *pdata,
 
 int protocol_gw1376_AFN00_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    /* PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata); */
-    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
-        protocol_gw1376_2_recv_apply_region_get(pdata);
-
-    if (pdata->recv.apply_region.AFN != 0x00)
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    AFN00_INFO afnInfo = {0};
+    if (precv->apply_region.AFN != 0x00)
     {
         dzlog_notice("%s AFN=%d error", __FUNCTION__,
                      pdata->recv.apply_region.AFN);
         return -1;
     }
-
-    if (papply_region->Fn == 0x01)
+    afnInfo.AFN = precv->apply_region.AFN;
+    afnInfo.Fn = precv->apply_region.Fn;
+    afnInfo.result = 0;
+    if (afnInfo.Fn == 2)
     {
-        dzlog_debug("%s ok", __FUNCTION__);
-        return 0;
+        afnInfo.result = (int)precv->apply_region.unit_buf[0];
     }
-
-    dzlog_notice("%s error", __FUNCTION__);
-    return -1;
+    dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
+    // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
+    //   hdzlog_info(precv->apply_region.unit_buf, 1);
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    // resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
+    resInfo.info = (void *)&afnInfo;
+    resInfo.infoSize = sizeof(AFN00_INFO);
+    resInfo.gw13762DataType = pdata->type;
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    return 0;
 }
 
 int protocol_gw1376_AFN01_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
@@ -99,32 +105,31 @@ int protocol_gw1376_AFN01_Fn03_down(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN01_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    int rtn = protocol_gw1376_AFN00_up(pdata);
-
-    if (rtn < 0)
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    AFN00_INFO afnInfo = {0};
+    if (precv->apply_region.AFN != 0x00)
     {
+        dzlog_notice("%s AFN=%d error", __FUNCTION__,
+                     pdata->recv.apply_region.AFN);
         return -1;
     }
-
-    if (pdata->type == GW1376_2_DATA_TYPE_HARD_INIT)
+    afnInfo.AFN = precv->apply_region.AFN;
+    afnInfo.Fn = precv->apply_region.Fn;
+    afnInfo.result = 0;
+    if (afnInfo.Fn == 2)
     {
-        pdata->type = GW1376_2_DATA_TYPE_PARAM_INIT;
+        afnInfo.result = (int)precv->apply_region.unit_buf[0];
     }
-    else if (pdata->type == GW1376_2_DATA_TYPE_PARAM_INIT)
-    {
-        pdata->type = GW1376_2_DATA_TYPE_DATA_INIT;
-        /* if (comm_data_get_state(pcomm_data) == COMM_STATE_STARTUP) { */
-        // comm_data_set_step(pcomm_data,GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE);
-
-        /* } */
-    }
-    else if (pdata->type == GW1376_2_DATA_TYPE_DATA_INIT)
-    {
-        pdata->type = GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR;
-    }
-
-    dzlog_debug("switch new type=%d", pdata->type);
-
+    dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
+    // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
+    //   hdzlog_info(precv->apply_region.unit_buf, 1);
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    // resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
+    resInfo.info = (void *)&afnInfo;
+    resInfo.infoSize = sizeof(AFN00_INFO);
+    resInfo.gw13762DataType = pdata->type;
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -198,29 +203,23 @@ int protocol_gw1376_AFN03_Fn04_down(PROTOCOL_GW1376_2_DATA *pdata)
 int protocol_gw1376_AFN03_Fn04_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
     PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
-    unsigned char addr[6];
 
     if (precv->apply_region.AFN != 3 || precv->apply_region.Fn != 4)
     {
         dzlog_notice("%s AFN or Fn error", __FUNCTION__);
         return -1;
     }
-
+    RES_INFO resInfo;
+    char addr[6];
     // 地址转换  修改
-    public_stob((char *)addr, addr, 6);
-
-    gw13762_task_set_queue_init(&pdata->task);
-
-    /*
-        if (0 != memcmp(addr, precv->apply_region.unit_buf, 6))
-        {
-            gw13762_task_set_queue_init(&pdata->task);
-        }
-        else
-        {
-            protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_NULL);
-        }
-    */
+    reverseHexArray(addr, precv->apply_region.unit_buf, 6);
+    // hdzlog_info(precv->apply_region.unit_buf, 6);
+    // hdzlog_info(addr, 6);
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR;
+    resInfo.info = (void *)addr;
+    resInfo.infoSize = sizeof(addr);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -287,7 +286,7 @@ int protocol_gw1376_AFN03_Fn10_up(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN05_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    /* PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata); */
+    PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
     PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
         protocol_gw1376_2_send_apply_region_get(pdata);
     protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_CCO);
@@ -295,7 +294,10 @@ int protocol_gw1376_AFN05_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
     papply_region->AFN = 0x05;
     papply_region->Fn = 0x01;
     // 设置主节点地址  修改
-    public_stob(NULL, (unsigned char *)papply_region->unit_buf, 6);
+    if (psend->ptask_data != NULL && psend->ptask_data->type == GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR)
+    {
+        reverseHexArray(papply_region->unit_buf, psend->ptask_data->buf, 6);
+    }
     papply_region->unit_len = 6;
 
     return 0;
@@ -303,16 +305,26 @@ int protocol_gw1376_AFN05_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN05_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    int rtn = protocol_gw1376_AFN00_up(pdata);
-    if (rtn < 0)
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    AFN00_INFO afnInfo = {0};
+    if (precv->apply_region.AFN != 0x00)
     {
+        dzlog_notice("%s AFN=%d error", __FUNCTION__,
+                     pdata->recv.apply_region.AFN);
         return -1;
     }
-
-    /*
-    comm_data_set_step(&pdata->pcomm->data,
-                       GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM);*/
-    protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_NULL);
+    afnInfo.AFN = precv->apply_region.AFN;
+    afnInfo.Fn = precv->apply_region.Fn;
+    if (afnInfo.Fn == 2)
+    {
+        afnInfo.result = (int)precv->apply_region.unit_buf;
+    }
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR;
+    resInfo.info = (void *)&afnInfo;
+    resInfo.infoSize = sizeof(AFN00_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -535,83 +547,101 @@ int protocol_gw1376_AFN10_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN10_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    /* APP_DATA *papp_data = app_data_get(); */
-    // COMM_DATA *pcomm_data = &pdata->pcomm->data;
-    /* APP_CFG *pcfg = &papp_data->cfg; */
-    /* PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata); */
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
     PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
         protocol_gw1376_2_recv_apply_region_get(pdata);
-    /* unsigned char addr[6]; */
 
     if (papply_region->AFN != 0x10 || papply_region->Fn != 1)
     {
-        /* comm_data_set_step(pcomm_data, GW1376_2_DATA_TYPE_PARAM_INIT); */
-
-        gw13762_task_set_queue_init(&pdata->task);
         return -1;
     }
 
     if (papply_region->unit_len != 4)
     {
         dzlog_notice("%s unit_len error", __FUNCTION__);
-        gw13762_task_set_queue_init(&pdata->task);
-        /* comm_data_set_step(pcomm_data, GW1376_2_DATA_TYPE_PARAM_INIT); */
         return -1;
     }
 
-    pdata->subnode_num =
-        MAKEWORD(papply_region->unit_buf[0], papply_region->unit_buf[1]);
+    int number = MAKEWORD(papply_region->unit_buf[0], papply_region->unit_buf[1]);
+
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM;
+    resInfo.info = (void *)&number;
+    resInfo.infoSize = sizeof(int);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
 
     return 0;
 }
 
 int protocol_gw1376_AFN10_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata)
 {
+    PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
+    GW13762_TASK_DATA *ptask_data = psend->ptask_data;
     PROTOCOL_GW1376_2_APPLY_REGION regin;
 
-    regin.AFN = 0x10;
-    regin.Fn = 2;
-    regin.unit_len = 3;
-    regin.unit_buf[0] = 0;
-    regin.unit_buf[1] = 0;
-    regin.unit_buf[2] = 0; // 修改
+    if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO)
+    {
+        regin.AFN = 0x10;
+        regin.Fn = 2;
+        regin.unit_len = ptask_data->len;
+        memcpy(regin.unit_buf, ptask_data->buf, 6);
+    }
 
     return protoco_gw1376_2_cco_down_unit(pdata, &regin);
 }
 
 int protocol_gw1376_AFN10_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    /* APP_DATA *papp_data = app_data_get(); */
-    // COMM_DATA *pcomm_data = &pdata->pcomm->data;
-    /* APP_CFG *pcfg = &papp_data->cfg; */
     PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
     PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
         protocol_gw1376_2_recv_apply_region_get(pdata);
-    int i;
-    unsigned char addr[6];
 
     if (papply_region->AFN != 0x10 || papply_region->Fn != 2)
     {
         dzlog_notice("%s AFN or Fn error", __FUNCTION__);
-        /* comm_data_set_step(pcomm_data, GW1376_2_DATA_TYPE_PARAM_INIT); */
-        // gw13762_task_set_queue_init(&pdata->task);
         return -1;
     }
 
     u16_t total =
         MAKEWORD(papply_region->unit_buf[0], papply_region->unit_buf[1]);
+    u08_t validNum = papply_region->unit_buf[2];
+    int index = 3;
+    ACQ_FILES_INFO acqFilesInfo;
+    acqFilesInfo.totalNum = total;
+    acqFilesInfo.validNum = validNum;
+    dzlog_info("total : [%d] validNum : [%d]", total, validNum);
 
-    /* dzlog_debug("%s ok", __FUNCTION__); */
-    /* for (i = 0; i < pcomm_data->dev_num; i++) { */
-    /*     DEV_DATA *pdev_data = pcomm_data->pdev[i]; */
-    /*     if (!pdev_data->addr_check) */
-    /*         break; */
-    /* } */
+    if (validNum != 0)
+    {
 
-    /* if (i == pcomm_data->dev_num) */
-    /*     protocol_gw1376_2_data_set_state( */
-    /*         pdata, GW1376_2_DATA_TYPE_WRITE_SUBNODE_TIMEOUT); */
+        acqFilesInfo.fileInfos = (FILE_INFO *)malloc(sizeof(FILE_INFO) * validNum);
+        if (acqFilesInfo.fileInfos == NULL)
+        {
+            dzlog_error("malloc failed!");
+            return -1;
+        }
 
+        for (int i = 0; i < validNum; i++)
+        {
+            reverseHexArray(acqFilesInfo.fileInfos[i].addr, papply_region->unit_buf + index, 6);
+            // hdzlog_info(acqFilesInfo.fileInfos[i].addr, 6);
+            index += 6;
+            acqFilesInfo.fileInfos[i].delayLevel = papply_region->unit_buf[index] & 0xf;
+            acqFilesInfo.fileInfos[i].listenSignal = papply_region->unit_buf[index] >> 4 & 0xf;
+            index++;
+            acqFilesInfo.fileInfos[i].phase = papply_region->unit_buf[index] & 0x7;
+            acqFilesInfo.fileInfos[i].proType = papply_region->unit_buf[index] >> 3 & 0x7;
+            index++;
+            // dzlog_info("delayLevel : [%d] listenSignal : [%d]  phase : [%d] proType : [%d]", acqFilesInfo.fileInfos->delayLevel, acqFilesInfo.fileInfos->listenSignal, acqFilesInfo.fileInfos->phase, acqFilesInfo.fileInfos->proType);
+        }
+    }
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO;
+    resInfo.info = (void *)&acqFilesInfo;
+    resInfo.infoSize = sizeof(ACQ_FILES_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -806,36 +836,110 @@ int protocol_gw1376_AFN10_Fn21_up_all(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN11_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    PROTOCOL_GW1376_2_APPLY_REGION regin;
-    int start = 0;
+    PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
+    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
+        protocol_gw1376_2_send_apply_region_get(pdata);
 
-    regin.AFN = 0x11;
-    regin.Fn = 1;
+    GW13762_TASK_DATA *ptask_data = psend->ptask_data;
+    protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_CCO);
 
-    dzlog_debug("type=%d", protocol_gw1376_2_data_get_data_type(pdata));
+    papply_region->AFN = 0x11;
+    papply_region->Fn = 0x01;
+
+    if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE)
+    {
+        memcpy(papply_region->unit_buf, ptask_data->buf, ptask_data->len);
+    }
+    papply_region->unit_len = ptask_data->len;
+
     if (protocol_gw1376_2_data_get_data_type(pdata) ==
         GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE)
     {
     }
-    return protoco_gw1376_2_cco_down_unit(pdata, &regin);
+    return 0;
 }
 
 int protocol_gw1376_AFN11_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
-        protocol_gw1376_2_recv_apply_region_get(pdata);
-
-    int rtn = protocol_gw1376_AFN00_up(pdata);
-    if (rtn < 0)
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    AFN00_INFO afnInfo = {0};
+    if (precv->apply_region.AFN != 0x00)
     {
-        if (papply_region->unit_buf[0] != 0x06)
-        {
-            return -1;
-        }
+        dzlog_notice("%s AFN=%d error", __FUNCTION__,
+                     pdata->recv.apply_region.AFN);
+        return -1;
     }
+    afnInfo.AFN = precv->apply_region.AFN;
+    afnInfo.Fn = precv->apply_region.Fn;
+    afnInfo.result = 0;
+    if (afnInfo.Fn == 2)
+    {
+        afnInfo.result = (int)precv->apply_region.unit_buf[0];
+    }
+    dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
+    // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
+    //   hdzlog_info(precv->apply_region.unit_buf, 1);
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
+    resInfo.info = (void *)&afnInfo;
+    resInfo.infoSize = sizeof(AFN00_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
 
-    /* protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_NULL); */
-    // protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_WRITE_SUBNODE_TIMEOUT);
+    return 0;
+}
+
+int protocol_gw1376_AFN11_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata)
+{
+    PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
+    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
+        protocol_gw1376_2_send_apply_region_get(pdata);
+
+    GW13762_TASK_DATA *ptask_data = psend->ptask_data;
+    protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_CCO);
+
+    papply_region->AFN = 0x11;
+    papply_region->Fn = 0x02;
+
+    if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE)
+    {
+        memcpy(papply_region->unit_buf, ptask_data->buf, ptask_data->len);
+    }
+    papply_region->unit_len = ptask_data->len;
+
+    if (protocol_gw1376_2_data_get_data_type(pdata) ==
+        GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE)
+    {
+    }
+    return 0;
+}
+
+int protocol_gw1376_AFN11_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata)
+{
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    AFN00_INFO afnInfo = {0};
+    if (precv->apply_region.AFN != 0x00)
+    {
+        dzlog_notice("%s AFN=%d error", __FUNCTION__,
+                     pdata->recv.apply_region.AFN);
+        return -1;
+    }
+    afnInfo.AFN = precv->apply_region.AFN;
+    afnInfo.Fn = precv->apply_region.Fn;
+    afnInfo.result = 0;
+    if (afnInfo.Fn == 2)
+    {
+        afnInfo.result = (int)precv->apply_region.unit_buf[0];
+    }
+    dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
+    // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
+    //   hdzlog_info(precv->apply_region.unit_buf, 1);
+    RES_INFO resInfo;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE;
+    resInfo.info = (void *)&afnInfo;
+    resInfo.infoSize = sizeof(AFN00_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
 
     return 0;
 }
@@ -872,7 +976,7 @@ int protocol_gw1376_AFN11_Fn03_up(PROTOCOL_GW1376_2_DATA *pdata)
         return -1;
     }
 
-    //dev_data_set_state(pdev_data, DEV_STATE_NULL);
+    // dev_data_set_state(pdev_data, DEV_STATE_NULL);
     protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_NULL);
     return 0;
 }

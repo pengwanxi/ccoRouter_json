@@ -374,6 +374,7 @@ protocol_gw1376_2_recv_control_data_init(PROTOCOL_GW1376_2_DATA *pdata)
     precv->comm_baud = 0;
     precv->comm_baud_flag = GW1376_2_BAUD_BIT;
 
+    precv->res_data_head = CreateList();
     return 0;
 }
 
@@ -393,17 +394,7 @@ protocol_gw1376_2_recv_control_data_exit(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_2_data_init(void *p)
 {
-    unsigned int size = sizeof(PROTOCOL_GW1376_2_DATA);
-
-    // 全局变量
-    PROTOCOL_GW1376_2_DATA *pprotocol_data;
-
-    pprotocol_data = (PROTOCOL_GW1376_2_DATA *)malloc(size);
-    if (NULL == pprotocol_data)
-    {
-        dzlog_notice("%s malloc error", __FUNCTION__);
-        return -1;
-    }
+    PROTOCOL_GW1376_2_DATA *pprotocol_data = (PROTOCOL_GW1376_2_DATA *)p;
     protocol_gw1376_2_send_control_data_init(pprotocol_data);
     protocol_gw1376_2_recv_control_data_init(pprotocol_data);
     gw13762_task_init(&pprotocol_data->task);
@@ -413,19 +404,16 @@ int protocol_gw1376_2_data_init(void *p)
 
 void protocol_gw1376_2_data_exit(void *p)
 {
-    /*
-    COMM *pcomm = (COMM *)p;
-    COMM_DATA *pcomm_data = &pcomm->data;
 
-    if (NULL != pcomm_data->protocol.pdata)
+    PROTOCOL_GW1376_2_DATA *pprotocol_data = (PROTOCOL_GW1376_2_DATA *)p;
+
+    if (NULL != pprotocol_data)
     {
-    PROTOCOL_GW1376_2_DATA *pprotocol_data =
-        (PROTOCOL_GW1376_2_DATA *)pcomm_data->protocol.pdata;
-    gw13762_task_destroy(&pprotocol_data->task);
-    protocol_gw1376_2_send_control_data_exit(pprotocol_data);
-    protocol_gw1376_2_recv_control_data_exit(pprotocol_data);
+        gw13762_task_destroy(&pprotocol_data->task);
+        protocol_gw1376_2_send_control_data_exit(pprotocol_data);
+        protocol_gw1376_2_recv_control_data_exit(pprotocol_data);
 
-    free(pcomm_data->protocol.pdata);
-    pcomm_data->protocol.pdata = NULL;
-}*/
+        free(pprotocol_data);
+        pprotocol_data = NULL;
+    }
 }

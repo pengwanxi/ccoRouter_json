@@ -119,6 +119,13 @@ static int protocol_gw1376_2_get_data(char *buf, int *len,
         rtn = protocol_gw1376_AFN10_Fn21_down_all(pdata);
     }
     break;
+
+    case GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE:
+    {
+        dzlog_debug("%s 删除从节点", __FUNCTION__);
+        rtn = protocol_gw1376_AFN11_Fn02_down(pdata);
+    }
+    break;
     case GW1376_2_DATA_TYPE_AUTOUP:
     {
 
@@ -144,16 +151,6 @@ else {
     if (0 == rtn)
     {
         rtn = protocol_gw1376_pack_frame_data(buf, len, pdata);
-
-        if (auto_flag > 0)
-        {
-            if (pdata->send.ptask_data)
-            {
-                GW13762_TASK_DATA *ptdata = pdata->send.ptask_data;
-                gw13762_task_remove(&pdata->task, ptdata->index);
-            }
-        }
-
         return rtn;
     }
 
@@ -175,18 +172,6 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
     bool prm;
     if (protocol_gw1376_unpack_frame_data(buf, len, pdata) < 0)
     {
-        pdata->unpack_frame_error_count++;
-        /* 异常太多次，重新初始化HPLC */
-
-        /*
-        if (pdata->unpack_frame_error_count >= 10)
-        {
-            comm_data_set_state(&pdata->pcomm->data, COMM_STATE_STARTUP);
-            comm_data_set_step(&pdata->pcomm->data, 0);
-            pdata->unpack_frame_error_count = 0;
-            dzlog_notice("%s set type=%d", __FUNCTION__,
-                         GW1376_2_DATA_TYPE_PARAM_INIT);
-        } */
         dzlog_notice("%s unpack error", __FUNCTION__);
         return -1;
     }
@@ -197,14 +182,13 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
     if (!prm)
     {
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
-        /* switch (pdata->type) { */
         switch (ptdata->type)
         {
         case GW1376_2_DATA_TYPE_HARD_INIT:
         case GW1376_2_DATA_TYPE_PARAM_INIT:
         case GW1376_2_DATA_TYPE_DATA_INIT:
         {
-            rtn = protocol_gw1376_AFN01_up(pdata);
+            rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
         case GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR:
@@ -219,7 +203,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         break;
         case GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR:
         {
-            rtn = protocol_gw1376_AFN05_Fn01_up(pdata);
+            rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
         case GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP:
@@ -232,6 +216,12 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
             rtn = protocol_gw1376_AFN05_Fn04_up(pdata);
         }
         break;
+        case GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE:
+        {
+            rtn = protocol_gw1376_AFN00_up(pdata);
+        }
+        break;
+            
         case GW1376_2_DATA_TYPE_TRANS_DATA:
         {
             rtn = protocol_gw1376_AFN02_Fn01_up(pdata);
@@ -288,7 +278,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         case GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE:
         case GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE:
         {
-            rtn = protocol_gw1376_AFN11_Fn01_up(pdata);
+            rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
 
@@ -382,7 +372,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
 int protocol_gw1376_2_get_sendbuf(char *buf, int *len, void *p)
 {
     PROTOCOL_GW1376_2_DATA *pprotocol_data =
-        NULL; // 修改为全局变量
+        (PROTOCOL_GW1376_2_DATA *)p; // 修改为全局变量
 
     /* int type = protocol_gw1376_2_get_data_type(pprotocol_data); */
     /* if (type <= 0 || type >= GW1376_2_DATA_TYPE_SIZE) { */
@@ -397,14 +387,14 @@ int protocol_gw1376_2_get_sendbuf(char *buf, int *len, void *p)
 int protocol_gw1376_2_process_buf(char *buf, int len, void *p)
 {
     PROTOCOL_GW1376_2_DATA *pprotocol_data =
-        NULL; // protocol_gw1376_2_data_get_by_comm(p);  修改
+        (PROTOCOL_GW1376_2_DATA *)p;
     PROTOCOL_GW1376_2_RECV_DATA *precv =
         protocol_gw1376_2_recv_data_get(pprotocol_data);
 
     int pos = 0;
     int error = 0;
 
-    while (pos <= len && pos >= 0)
+    while (pos < len && pos >= 0)
     {
         int rtn;
         /* 找到有效报文 */
@@ -413,11 +403,7 @@ int protocol_gw1376_2_process_buf(char *buf, int len, void *p)
         {
             return -1;
         }
-
-        dzlog_debug("value pos=%d", pos);
-        rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len,
-                                             pprotocol_data);
-
+        rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len, pprotocol_data);
         if (rtn < 0)
         {
             error = -1;
@@ -490,5 +476,5 @@ void protocol_gw1376_2_exit(void *p)
     }
     */
     protocol_gw1376_2_data_exit(p);
-    //pcomm_data->protocol.init = 0;
+    // pcomm_data->protocol.init = 0;
 }

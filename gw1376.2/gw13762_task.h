@@ -30,7 +30,7 @@ typedef struct _GW13762_TASK_DATA
 	PROTOCOL_SEND protocol_send;
 	PROTOCOL_RECV protocol_recv;
 
-	unsigned char buf[PROTOCOL_BUF_LEN];
+	char buf[PROTOCOL_BUF_LEN];
 	int len;
 
 	long timeout_msec;

@@ -14,10 +14,18 @@
 #include "zlog.h"
 
 #define MAXTIMEOUT 60
-#define CONFIGPATH "/data/app/ccoRouter/conf/"
+#define CONFIGPATH "/home/sysadm/pengwx/ccoRouter/conf/"
 
-#define APP_VER_LOCAL 0 // 专网卡
-#define APP_VER_MQTT 1  // 公网卡
+#define APP_VER_LOCAL 0
+#define APP_VER_MQTT 1  
+
+/* 信道 */
+typedef enum dealMsgType
+{
+    UART_MSG = 0, /* 中继级别0 */
+    MQTT_MSG,
+    MQTT_CONNECT_MSG,
+} DEAL_MSG_TYPE;
 
 class AppControl
 {
@@ -39,13 +47,19 @@ private:
     int readConfig();
     void dealMessage(DATAMESSAGE *message);
 
-    void dealMessageThreadFunc();
+    void serialSendThreadFunc();     // 串口发送线程
+    void dealSerialRecvThreadFunc(); // 处理串口接收消息 线程
+    void dealMessageThreadFunc();    // 处理mqtt接收到的消息  线程
+    void serialRecvThreadFunc();     // 接收串口消息线程
+
+    void mqttRecvThreadFunc(); // 返回mqtt消息线程
 
 private:
     std::string m_devSn;   // 设备sn
     std::string m_appName; // APP名称
     MqttControl *m_pMqttControl;
     QueueBuffer *m_queue;
+    QueueBuffer *m_uartQueue;
     zlog_category_t *m_logc;
     std::string m_mfr;
     MQTT_INFO m_mInfo;
@@ -62,7 +76,7 @@ private:
     bool m_bGetDev;
     int m_interval;
 
-    int m_appVer; // 程序版本 0 专网卡版本   1 公网卡版本
+    int m_channel; // 信道设置
 };
 
 #endif

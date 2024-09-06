@@ -6,11 +6,9 @@
 #include <mutex>
 #include <condition_variable>
 
-
-
-
 typedef struct{
     int src;
+    int size;
     std::string topic;
     std::string message;
 }DATAMESSAGE;

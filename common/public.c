@@ -15,6 +15,8 @@
 /*     return byRtn; */
 /* } */
 
+
+
 unsigned char cal_cs(const unsigned char *buf, int len)
 {
     unsigned char byRtn = 0x00;
@@ -23,13 +25,27 @@ unsigned char cal_cs(const unsigned char *buf, int len)
     if (buf == NULL || len <= 0)
         return byRtn;
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
+    {
         byRtn += buf[i];
     }
 
     return byRtn;
 }
 
+void reverseHexArray(char *outArray, char *hexArray, int length)
+{
+    int start = 0;
+    int end = length - 1;
+
+    while (start < length)
+    {
+        // 交换hexArray[start]和hexArray[end]
+        outArray[start] = hexArray[end];
+        start++;
+        end--;
+    }
+}
 
 void public_stob(const char *pstr, unsigned char *pbcd, int len)
 {
