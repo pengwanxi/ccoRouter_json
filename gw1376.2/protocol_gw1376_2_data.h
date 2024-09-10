@@ -134,34 +134,44 @@ typedef enum _PROTOCOL_GW1376_2_PROTOCOL
 /* 类型 */
 typedef enum _PROTOCOL_GW1376_2_DATA_TYPE
 {
-    GW1376_2_DATA_TYPE_NULL = 0,                /* 空 */
-    GW1376_2_DATA_TYPE_HARD_INIT,               /* 硬件初始化 */
-    GW1376_2_DATA_TYPE_PARAM_INIT,              /* 参数初始化 */
-    GW1376_2_DATA_TYPE_DATA_INIT,               /* 数据初始化 */
-    GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR,     /* 读取主节点地址 */
-    GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR,    /* 设置主节点地址 */
-    GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP,   /* 设置子节点主动上传 */
-    GW1376_2_DATA_TYPE_WRITE_SUBNODE_TIMEOUT,   /* 设置子节点超时时间 */
-    GW1376_2_DATA_TYPE_READ_MAIN_RUN_MODE,      /* 读取运行模式 */
-    GW1376_2_DATA_TYPE_READ_MAIN_NODE,          /* 读取主节点 */
-    GW1376_2_DATA_TYPE_WRITE_MAIN_NODE,         /* 设置主节点 */
-    GW1376_2_DATA_TYPE_READ_NODE,               /* 读取节点 */
-    GW1376_2_DATA_TYPE_WRITE_NODE,              /* 设置节点 */
-    GW1376_2_DATA_TYPE_TRANS_DATA,              /* 转发报文 */
-    GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA,    /* 转发广播报文 */
-    GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM,  /* 查询子节点数量 */
-    GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO, /* 查询子节点信息 */
-    GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE,   /* 增加所有节点 */
-    GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE,       /* 增加子节点 */
-    GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE,       /* 删除子节点 */
-    GW1376_2_DATA_TYPE_ROUTE_SET_SUBNODE_RELAY, /* 设置子节点中继 */
-    GW1376_2_DATA_TYPE_AUTOUP,                  /* 主动上送 */
-    GW1376_2_DATA_TYPE_ROUTE_RUN_STATE,         /* 查询路由状态 */
-    GW1376_2_DATA_TYPE_ROUTE_NET_TOPO_INFO,     /* 查看单个网络在线信息 */
-    GW1376_2_DATA_TYPE_ROUTE_ALL_NET_TOPO_INFO, /* 查看所有网络在线信息 */
+    GW1376_2_DATA_TYPE_NULL = 0,                 /* 空 */
+    GW1376_2_DATA_TYPE_HARD_INIT,                /* 硬件初始化 */
+    GW1376_2_DATA_TYPE_PARAM_INIT,               /* 参数初始化 */
+    GW1376_2_DATA_TYPE_DATA_INIT,                /* 数据初始化 */
+    GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR,      /* 读取主节点地址 */
+    GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR,     /* 设置主节点地址 */
+    GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP,    /* 设置子节点主动上传 */
+    GW1376_2_DATA_TYPE_WRITE_SUBNODE_TIMEOUT,    /* 设置子节点超时时间 */
+    GW1376_2_DATA_TYPE_READ_MAIN_RUN_MODE,       /* 读取运行模式 */
+    GW1376_2_DATA_TYPE_READ_MAIN_NODE,           /* 读取主节点 */
+    GW1376_2_DATA_TYPE_WRITE_MAIN_NODE,          /* 设置主节点 */
+    GW1376_2_DATA_TYPE_READ_NODE,                /* 读取节点 */
+    GW1376_2_DATA_TYPE_WRITE_NODE,               /* 设置节点 */
+    GW1376_2_DATA_TYPE_TRANS_DATA,               /* 转发报文 */
+    GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA,     /* 转发广播报文 */
+    GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM,   /* 查询子节点数量 */
+    GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO,  /* 查询子节点信息 */
+    GW1376_2_DATA_TYPE_ROUTE_ADD_ALL_SUBNODE,    /* 增加所有节点 */
+    GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE,        /* 增加子节点 */
+    GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE,        /* 删除子节点 */
+    GW1376_2_DATA_TYPE_ROUTE_SET_SUBNODE_RELAY,  /* 设置子节点中继 */
+    GW1376_2_DATA_TYPE_AUTOUP,                   /* 主动上送 */
+    GW1376_2_DATA_TYPE_ROUTE_RUN_STATE,          /* 查询路由状态 */
+    GW1376_2_DATA_TYPE_ROUTE_NET_TOPO_INFO,      /* 查看单个网络在线信息 */
+    GW1376_2_DATA_TYPE_ROUTE_ALL_NET_TOPO_INFO,  /* 查看所有网络在线信息 */
+    GW1376_2_DATA_TYPE_CONCURRENT_METER_READING, /* 并发抄表 */
     GW1376_2_DATA_TYPE_SIZE,
 
 } PROTOCOL_GW1376_2_DATA_TYPE;
+
+// 并发抄表响应信息
+typedef struct
+{
+    char addr[6];      // 地址
+    int proType;       // 协议类型
+    int bufLen;        // 报文长度
+    char buffer[2048]; // 报文
+} CONCURRENT_INFO;
 
 // 从节点信息
 typedef struct
@@ -188,6 +198,7 @@ typedef struct
     int gw13762DataType; // 返回的类型
     void *info;          // 对应返回类型的结构体
     int infoSize;        // 长度
+    int isReport;        // 是否为上报数据  并发采集上报，从节点上报，主动上报
 } RES_INFO;
 
 // 确认否认信息

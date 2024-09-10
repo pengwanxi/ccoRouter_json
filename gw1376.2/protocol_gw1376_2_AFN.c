@@ -209,10 +209,13 @@ int protocol_gw1376_AFN03_Fn04_up(PROTOCOL_GW1376_2_DATA *pdata)
         dzlog_notice("%s AFN or Fn error", __FUNCTION__);
         return -1;
     }
+    memset(pdata->send.addr_region.src, 0, 6);
+    memcpy(pdata->send.addr_region.src, precv->apply_region.unit_buf, 6); // 存主节点地址
     RES_INFO resInfo;
     char addr[6];
     // 地址转换  修改
     reverseHexArray(addr, precv->apply_region.unit_buf, 6);
+
     // hdzlog_info(precv->apply_region.unit_buf, 6);
     // hdzlog_info(addr, 6);
     resInfo.index = precv->recvIndex;
@@ -978,5 +981,56 @@ int protocol_gw1376_AFN11_Fn03_up(PROTOCOL_GW1376_2_DATA *pdata)
 
     // dev_data_set_state(pdev_data, DEV_STATE_NULL);
     protocol_gw1376_2_data_set_state(pdata, GW1376_2_DATA_TYPE_NULL);
+    return 0;
+}
+
+int protocol_gw1376_AFNF1_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
+{
+    PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
+    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
+        protocol_gw1376_2_send_apply_region_get(pdata);
+
+    GW13762_TASK_DATA *ptask_data = psend->ptask_data;
+    protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_STA);
+
+    papply_region->AFN = 0xF1;
+    papply_region->Fn = 0x01;
+
+    if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+    {
+        memset(psend->addr_region.dest, 0, sizeof(psend->addr_region.dest));
+        memcpy(psend->addr_region.dest, ptask_data->sta_addr, sizeof(psend->addr_region.dest));
+        memcpy(papply_region->unit_buf, ptask_data->buf, ptask_data->len);
+    }
+    papply_region->unit_len = ptask_data->len;
+    return 0;
+}
+
+int protocol_gw1376_AFNF1_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
+{
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
+        protocol_gw1376_2_recv_apply_region_get(pdata);
+
+    if (papply_region->AFN != 0xF1 || papply_region->Fn != 0x01)
+    {
+        dzlog_notice("%s AFN or Fn error", __FUNCTION__);
+        return -1;
+    }
+
+    CONCURRENT_INFO concurrentInfo;
+
+    concurrentInfo.proType = papply_region->unit_buf[0];
+    int bufLen = MAKEWORD(papply_region->unit_buf[2], papply_region->unit_buf[3]);
+    concurrentInfo.bufLen = bufLen;
+    memcpy(concurrentInfo.buffer, papply_region->unit_buf + 4, bufLen);
+
+    RES_INFO resInfo;
+    resInfo.isReport = true;
+    resInfo.index = precv->recvIndex;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_NULL;
+    resInfo.info = (void *)&concurrentInfo;
+    resInfo.infoSize = sizeof(CONCURRENT_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }

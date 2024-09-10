@@ -413,7 +413,7 @@ int protocol_gw1376_unpack_user_info_region(PROTOCOL_GW1376_2_DATA *pdata)
     // dzlog_debug("buf_count=%d", (unsigned char)pinfo->data[5]);
     if (!precv->prm)
     {
-        //GW13762_TASK_DATA *ptask_data = gw13762_task_find(&pdata->task, buf_count);
+        // GW13762_TASK_DATA *ptask_data = gw13762_task_find(&pdata->task, buf_count);
         precv->recvIndex = buf_count;
     }
     else
@@ -450,33 +450,33 @@ int protocol_gw1376_pack_user_addr_region(PROTOCOL_GW1376_2_ADDR_REGION *paddr,
                                           PROTOCOL_GW1376_2_DATA *pdata)
 {
 
-    /*
     PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
-    APP_DATA *papp_data = app_data_get();
-    APP_CFG *pcfg = &papp_data->cfg;
-    int i;
-    DEV_DATA *pdev_data = comm_data_get_current_dev(&pdata->pcomm->data);
+    /*
+APP_DATA *papp_data = app_data_get();
+APP_CFG *pcfg = &papp_data->cfg;
+int i;
+DEV_DATA *pdev_data = comm_data_get_current_dev(&pdata->pcomm->data);
 
-    if (NULL == paddr)
-        return -1;
+if (NULL == paddr)
+    return -1;
 
-    public_stob(pcfg->addr, (unsigned char *)paddr->src, 6);
+public_stob(pcfg->addr, (unsigned char *)paddr->src, 6);
 
-    for (i = 0; i < pdev_data->relay_addrs_num; i++)
-    {
-        dzlog_debug("relay_addr=%s", pdev_data->relay_addrs[i]);
-        public_stob(pdev_data->relay_addrs[i], (unsigned char *)paddr->relay[i],
-                    6);
+for (i = 0; i < pdev_data->relay_addrs_num; i++)
+{
+    dzlog_debug("relay_addr=%s", pdev_data->relay_addrs[i]);
+    public_stob(pdev_data->relay_addrs[i], (unsigned char *)paddr->relay[i],
+                6);
 
-        log_debug_frame(paddr->relay[i], 6);
-    }
-    protocol_gw1376_2_data_set_send_relay_level(pdata,
-                                                pdev_data->relay_addrs_num);
-    dzlog_debug("%s %d", __FUNCTION__, psend->info_region.data[0]);
-    paddr->relay_num = pdev_data->relay_addrs_num;
+    log_debug_frame(paddr->relay[i], 6);
+}
+protocol_gw1376_2_data_set_send_relay_level(pdata,
+                                            pdev_data->relay_addrs_num);
+dzlog_debug("%s %d", __FUNCTION__, psend->info_region.data[0]);
+paddr->relay_num = pdev_data->relay_addrs_num;
 
-    public_stob(pdev_data->s_staaddr, (unsigned char *)paddr->dest, 6);
-    */
+public_stob(pdev_data->s_staaddr, (unsigned char *)paddr->dest, 6);
+*/
     // 修改
     return 0;
 }
@@ -634,15 +634,16 @@ int protocol_gw1376_pack_user_data(char *buf, int *len,
     if (psend->comm_module_flag == GW1376_2_STA) // 从节点中继地址
     {
         int i;
-
         memcpy(buf + index, psend->addr_region.src, 6);
         index += 6;
 
+        // 中继地址 修改
+        /*
         for (i = 0; i < psend->addr_region.relay_num; i++)
         {
             memcpy(buf + index, psend->addr_region.relay[i], 6);
             index += 6;
-        }
+        }   */
 
         memcpy(buf + index, psend->addr_region.dest, 6);
         index += 6;

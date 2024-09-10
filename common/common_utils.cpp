@@ -3,6 +3,36 @@
 #include "globalbase.h"
 #include "cJSON.h"
 
+/**
+ *  \brief bcd 转 字符
+ *  \param bcd
+ *  \param 字符串
+ *  \param 长度
+ *  \return void
+ */
+void com_btos(const char *inBCD, char *outStr, int len)
+{
+	int i = 0, j = 0;
+
+	if (NULL == inBCD || NULL == outStr || len < 1)
+		return;
+
+	for (i = len - 1, j = 0; i >= 0; i--)
+	{
+		char c0 = inBCD[i] & 0xF;
+		char c1 = (inBCD[i] >> 4) & 0xF;
+		if (c1 >= 0 && c1 <= 9)
+			outStr[j++] = c1 + '0';
+		else
+			outStr[j++] = c1 + 'A';
+
+		if (c0 >= 0 && c0 <= 9)
+			outStr[j++] = c0 + '0';
+		else
+			outStr[j++] = c0 + 'A';
+	}
+}
+
 // 反转数组
 
 void reverseHexArraycom(char *outArray, char *hexArray, int length)
@@ -71,6 +101,10 @@ void stringToHexArray(const char *hexStr, char *hexArray, int *length)
 // 16进制数组转字符串
 void hexArrayToString(const char *hexArray, int length, char *outStr)
 {
+	if (hexArray == NULL)
+	{
+		return;
+	}
 	const char hexDigits[] = "0123456789ABCDEF"; // 用于将每个字节转换为对应的十六进制字符
 
 	for (int i = 0; i < length; i++)

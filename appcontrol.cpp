@@ -174,11 +174,39 @@ void AppControl::serialSendThreadFunc()
             if (len > 0)
             {
                 // 发送报文  判断串口设备节点是否存在
-                m_hplcPort->sendData(buf, len);
+                int writeNum = m_hplcPort->sendData(buf, len);
+
                 char msg[] = "uart send data : [ %s ]";
                 zlog_print(m_logc, msg, buf, len);
                 memcpy(&pdata->recv.task_data, ptdata, sizeof(GW13762_TASK_DATA));
                 gw13762_task_remove(&pdata->task, ptdata->index);
+                if (writeNum > 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+                {
+                    AFN00_INFO afnInfo = {0};
+                    afnInfo.AFN = 0x01;
+                    afnInfo.Fn = 0x01;
+                    afnInfo.result = 0;
+                    RES_INFO resInfo;
+                    resInfo.index = pdata->send.ptask_data->index;
+                    resInfo.info = (void *)&afnInfo;
+                    resInfo.infoSize = sizeof(AFN00_INFO);
+                    resInfo.gw13762DataType = pdata->type;
+                    ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+                }
+                else if (writeNum <= 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+                {
+                    AFN00_INFO afnInfo = {0};
+                    afnInfo.AFN = 0x00;
+                    afnInfo.Fn = 0x02;
+                    afnInfo.result = 0;
+                    RES_INFO resInfo;
+                    resInfo.index = pdata->send.ptask_data->index;
+                    resInfo.info = (void *)&afnInfo;
+                    resInfo.infoSize = sizeof(AFN00_INFO);
+                    resInfo.gw13762DataType = pdata->type;
+                    ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+                }
+            
                 // hzlog_info(m_logc, buf, len);
             }
             continue;
@@ -197,10 +225,12 @@ void AppControl::serialRecvThreadFunc()
         usleep(20 * 1000);
         memset(recvBuf, 0, sizeof(recvBuf));
         int size = m_hplcPort->receiveData(recvBuf, sizeof(recvBuf));
+        // dzlog_info("read size : [%d] ", size);
         if (size <= 0)
         {
             continue;
         }
+        // printf("======>1111111");
         char msg[] = "uart recv data : [ %s ]";
         zlog_print(m_logc, msg, recvBuf, size);
 

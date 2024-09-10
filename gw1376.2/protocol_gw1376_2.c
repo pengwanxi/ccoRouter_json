@@ -126,6 +126,13 @@ static int protocol_gw1376_2_get_data(char *buf, int *len,
         rtn = protocol_gw1376_AFN11_Fn02_down(pdata);
     }
     break;
+    case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
+    {
+        dzlog_debug("%s 并发抄表", __FUNCTION__);
+        rtn = protocol_gw1376_AFNF1_Fn01_down(pdata);
+    }
+    break;
+
     case GW1376_2_DATA_TYPE_AUTOUP:
     {
 
@@ -168,6 +175,10 @@ else {
 static int protocol_gw1376_2_process_data(char *buf, int len,
                                           PROTOCOL_GW1376_2_DATA *pdata)
 {
+    PROTOCOL_GW1376_2_RECV_DATA *precv =
+        protocol_gw1376_2_recv_data_get(pdata);
+    PROTOCOL_GW1376_2_APPLY_REGION *papplydata = &precv->apply_region;
+
     int rtn;
     bool prm;
     if (protocol_gw1376_unpack_frame_data(buf, len, pdata) < 0)
@@ -181,6 +192,17 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
     /* 询问回复的报文 */
     if (!prm)
     {
+        switch (papplydata->AFN)
+        {
+        case 0xF1:
+        {
+            protocol_gw1376_AFNF1_Fn01_up(pdata);
+        }
+        break;
+        default:
+            break;
+        }
+
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
         switch (ptdata->type)
         {
@@ -221,7 +243,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
             rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
-            
+
         case GW1376_2_DATA_TYPE_TRANS_DATA:
         {
             rtn = protocol_gw1376_AFN02_Fn01_up(pdata);
@@ -308,9 +330,6 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
     } /* 自动上送的报文 */
     else
     {
-        PROTOCOL_GW1376_2_RECV_DATA *precv =
-            protocol_gw1376_2_recv_data_get(pdata);
-        PROTOCOL_GW1376_2_APPLY_REGION *papplydata = &precv->apply_region;
 
         dzlog_debug("auto up afn=%d fn=F%d", papplydata->AFN,
                     papplydata->Fn);

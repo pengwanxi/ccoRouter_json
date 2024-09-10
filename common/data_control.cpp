@@ -56,17 +56,27 @@ int DataControl::init(MqttControl *mqttControl)
 
 void DataControl::dataInit()
 {
+    char *payload = NULL;
+    std::string topic1 = "test/ccoRouter/JSON/get/request/masterNode";
+    cJSON *root1 = cJSON_CreateObject();
+    addResObject(root1, 1);
+    cJSON_AddItemToObject(root1, "prio", cJSON_CreateNumber(1));
+    payload = cJSON_Print(root1);
+    m_ccoCtl->dataInit(topic1.c_str(), payload);
+    cJSON_Delete(root1);
+    free(payload);
+    usleep(200 * 1000);
+
     std::string topic = "test/ccoRouter/JSON/get/request/acqQueryFiles";
     cJSON *root = cJSON_CreateObject();
-    addResObject(root, 1);
+    addResObject(root, 2);
     cJSON_AddItemToObject(root, "prio", cJSON_CreateNumber(1));
     cJSON_AddItemToObject(root, "startIndex", cJSON_CreateNumber(1));
     cJSON_AddItemToObject(root, "curMeterNum", cJSON_CreateNumber(255));
-    char *payload = NULL;
+
+    payload = NULL;
     payload = cJSON_Print(root);
-
     m_ccoCtl->dataInit(topic.c_str(), payload);
-
     cJSON_Delete(root);
     free(payload);
 }

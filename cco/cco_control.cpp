@@ -16,7 +16,7 @@ CcoControl::CcoControl()
 
     m_pdata = get_pdata();
     m_logc = zlog_get_category("ccoControl");
-
+    m_token = 1;
     paraInit();
 }
 
@@ -139,7 +139,6 @@ int CcoControl::parseCcoData(const char *topic, const char *message)
     case SET_MASTERNODE_NUM:
         res = parseSetMasterNode(topic, message);
         break;
-
     case SET_ACQ_ADD_FILES_NUM:
         res = parseSetAcqAddFiles(topic, message);
         break;
@@ -168,7 +167,7 @@ int CcoControl::parseCcoData(const char *topic, const char *message)
 
         break;
     case ACTION_CONCURRENT_NUM:
-        res = parseActionConCurrent(topic, message);
+        res = parseActionConCurrent(resTopic, message);
         break;
     case ACTION_DATATRANS_NUM:
         // res = parseActionDataTrans(topic, message);
@@ -309,7 +308,7 @@ int CcoControl::parseSetMasterNode(std::string topic, std::string message)
 
 int CcoControl::parseSetAcqAddFiles(std::string topic, std::string message)
 {
-    std::vector<std::string> addrs;
+    std::map<std::string, int> addrs; // addr proType
     GW13762_TASK *ptask = &m_pdata->task;
     cJSON *root = cJSON_Parse(message.c_str());
     if (root == NULL)
@@ -364,36 +363,33 @@ int CcoControl::parseSetAcqAddFiles(std::string topic, std::string message)
             return -1;
         }
 
-        addrs.push_back(acqAddr->valuestring);
+        addrs.emplace(acqAddr->valuestring, proType->valueint);
         dzlog_info("acqAddr : [%s] macAddr : [%s] proType : [%d]", acqAddr->valuestring, macAddr->valuestring, proType->valueint);
     }
     cJSON_Delete(root);
 
+    auto addr = addrs.begin();
+
     int flag = 0;
     for (int i = 0; i < addrs.size(); i++)
     {
-        auto it = m_fileInfosMap.find(addrs[i]);
+        // addr = addr + i;
+        auto it = m_fileInfosMap.find(addr->first);
         if (it != m_fileInfosMap.end())
         {
             flag = 1;
         }
+        addr++;
     }
     if (flag == 0)
     {
-        
+        m_fileInfosMap.insert(addrs.begin(), addrs.end());
     }
 
-    auto it = m_fileInfosMap.find(acqAddr->valuestring);
-    if (it == m_fileInfosMap.end())
+    for (const auto &pair : m_fileInfosMap)
     {
-        //m_fileInfosMap.emplace(acqAddr->valuestring, acqFilesInfo->fileInfos[i].proType);
-    }
-    else
-    {
-        if (it->second != acqFilesInfo->fileInfos[i].proType)
-        {
-            it->second = acqFilesInfo->fileInfos[i].proType;
-        }
+        // std::cout << pair.first << " => " << pair.second << std::endl;
+        zlog_info(m_logc, "addr : [%s] proType : [%d]", pair.first.c_str(), pair.second);
     }
 
     GW13762_TASK_DATA data;
@@ -498,8 +494,20 @@ int CcoControl::parseDelAcqFiles(std::string topic, std::string message)
         reverseHexArraycom(delAddr + index, addr, sizeof(addr));
         index += 6;
         dzlog_info("acqAddr : [%s] ", acqAddr->valuestring);
+
+        auto it = m_fileInfosMap.find(acqAddr->valuestring);
+        if (it != m_fileInfosMap.end())
+        {
+            m_fileInfosMap.erase(acqAddr->valuestring);
+        }
     }
     cJSON_Delete(root);
+
+    for (const auto &pair : m_fileInfosMap)
+    {
+        // std::cout << pair.first << " => " << pair.second << std::endl;
+        zlog_info(m_logc, "addr : [%s] proType : [%d]", pair.first.c_str(), pair.second);
+    }
 
     GW13762_TASK_DATA data;
     memset(&data, 0, sizeof(GW13762_TASK_DATA));
@@ -519,7 +527,16 @@ int CcoControl::parseDelAcqFiles(std::string topic, std::string message)
 
 int CcoControl::parseActionConCurrent(std::string topic, std::string message)
 {
-    /*
+    std::string str;
+    str = topic;
+    std::vector<std::string> topicStrs;
+    split(str, "/", topicStrs);
+    topicStrs[3] = "report";
+    topicStrs[4] = "notification";
+    topicStrs[5] = "reportConcurrent";
+    char cTopic[128] = {0};            // 对比topic字符串
+    sysOutputTopic(topicStrs, cTopic); // 去除app名字的topic 去匹配
+
     GW13762_TASK *ptask = &m_pdata->task;
     cJSON *root = cJSON_Parse(message.c_str());
     if (root == NULL)
@@ -537,49 +554,86 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
     char addr[6] = {0};
     int len;
     stringToHexArray(acqAddr->valuestring, addr, &len);
-    reverseHexArraycom(delAddr + index, addr, sizeof(addr));
 
-    cJSON *body = NULL;
-    char delAddr[1024] = {0};
-    int index = 0;
+    m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
 
-    delAddr[index] = cJSON_GetArraySize(bodys);
-    index++;
-    char addr[6] = {0};
-    cJSON_ArrayForEach(body, bodys)
+    cJSON *dataCJSON = cJSON_GetObjectItemCaseSensitive(root, "data");
+    if (!cJSON_IsString(dataCJSON))
     {
-        memset(addr, 0, sizeof(addr));
-        cJSON *acqAddr = NULL;
-
-        acqAddr = cJSON_GetObjectItemCaseSensitive(body, "acqAddr");
-        if (!cJSON_IsString(acqAddr))
-        {
-            dzlog_debug(" acqAddr null!");
-            return -1;
-        }
-        int len;
-
-        stringToHexArray(acqAddr->valuestring, addr, &len);
-        reverseHexArraycom(delAddr + index, addr, sizeof(addr));
-        index += 6;
-        dzlog_info("acqAddr : [%s] ", acqAddr->valuestring);
-    }
-    cJSON_Delete(root);
-
-    GW13762_TASK_DATA data;
-    memset(&data, 0, sizeof(GW13762_TASK_DATA));
-    data.type = GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE;
-    data.ismanu_index = false;
-    memcpy(data.buf, delAddr, index);
-    data.len = index;
-    int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
-    if (gw13762Index < 0)
-    {
-        zlog_error(m_logc, "gw13762_task_push error!");
+        zlog_error(m_logc, "cJson parse error");
         return -1;
     }
-    return gw13762Index;*/
+    std::string base64Data = decode_base64((unsigned char *)(dataCJSON->valuestring), strlen(dataCJSON->valuestring));
+    char base64DataBuf[2048];
+    char tmpBuf[2048];
+    sprintf(tmpBuf, "%s", base64Data.c_str());
+    // printf("String: %s\n", tmpBuf); // 输出 "Hello"
+    int bufLen;
+    stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
+    hdzlog_info(base64DataBuf, bufLen);
+
+    int gw13762Index = 0;
+    auto it = m_fileInfosMap.find(std::string(acqAddr->valuestring));
+    if (it != m_fileInfosMap.end())
+    {
+        int index = 0;
+        char sendData[1024] = {0};
+        GW13762_TASK_DATA data;
+        memset(&data, 0, sizeof(GW13762_TASK_DATA));
+        data.type = GW1376_2_DATA_TYPE_CONCURRENT_METER_READING;
+        data.ismanu_index = false;
+        reverseHexArraycom(data.sta_addr, addr, sizeof(addr));
+        sendData[index] = it->second;
+        index++;
+        sendData[index] = 0;
+        index++;
+
+        sendData[index] = bufLen & 0xff;
+        index++;
+        sendData[index] = bufLen >> 8 & 0xff;
+        index++;
+
+        memcpy(sendData + index, base64DataBuf, bufLen);
+        index += bufLen;
+
+        memcpy(data.buf, sendData, index);
+        data.len = index;
+        gw13762Index = gw13762_task_push(ptask, &data);
+        protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+        if (gw13762Index < 0)
+        {
+            zlog_error(m_logc, "gw13762_task_push error!");
+        }
+    }
+    else
+    {
+        gw13762Index = -1;
+        // 组报文发送档案冲突
+        cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
+        if (!cJSON_IsNumber(token))
+        {
+            zlog_error(m_logc, "cJson parse error");
+            return -1;
+        }
+        cJSON *sendRoot = cJSON_CreateObject();
+
+        addResObject(sendRoot, token->valueint);
+        cJSON_AddItemToObject(sendRoot, "status", cJSON_CreateNumber(-1));
+        cJSON_AddItemToObject(sendRoot, "reason", cJSON_CreateString("Meter Conflict"));
+        char *payload = NULL;
+        payload = cJSON_Print(sendRoot);
+
+        int bRet = m_mqttControl->mqttPublish(masterserver, topic.c_str(), strlen(payload), payload, m_mInfo->nqos, false);
+        if (!bRet)
+        {
+            zlog_error(m_logc, "publish topic %s error", topic.c_str());
+        }
+        zlog_info(m_logc, "ccoRouter response : topic : [%s]\n%s", topic.c_str(), payload);
+        cJSON_Delete(sendRoot);
+        free(payload);
+    }
+    cJSON_Delete(root);
+    return gw13762Index;
 }
 
 int CcoControl::parseActionDataTrans(std::string topic, std::string message)
@@ -655,6 +709,12 @@ int CcoControl::parseClearAcqFiles(std::string topic, std::string message)
         zlog_error(m_logc, "gw13762_task_push error!");
         return -1;
     }
+    m_fileInfosMap.clear();
+    for (const auto &pair : m_fileInfosMap)
+    {
+        // std::cout << pair.first << " => " << pair.second << std::endl;
+        zlog_info(m_logc, "addr : [%s] proType : [%d]", pair.first.c_str(), pair.second);
+    }
     return gw13762Index;
 }
 
@@ -678,78 +738,97 @@ int CcoControl::parseGetAcqFilesNum(std::string topic, std::string message)
 // 打包发送mqtt报文
 int CcoControl::packSendMqttMsg(void *data, int dataSize)
 {
-    RES_INFO *resInfo = (RES_INFO *)data;
+    std::string topic;
     int res = 0;
-    std::map<int, RES_TOKEN_INFO>::iterator mqttRes = m_mqttResMap.find(resInfo->index);
-
-    // zlog_info(m_logc, "m_mqttResMap.size() : [ %d ]  m_mqttResMap[ %d ] resTopic : [%s]", m_mqttResMap.size(), resInfo->index, mqttRes->second.resTopic.c_str());
-    dzlog_info("resInfo->gw13762DataType : [%d]", resInfo->gw13762DataType);
-    if (mqttRes != m_mqttResMap.end())
+    RES_INFO *resInfo = (RES_INFO *)data;
+    cJSON *root = cJSON_CreateObject();
+    if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_NULL && resInfo->isReport == true)
     {
-        RES_TOKEN_INFO resTokenInfo = mqttRes->second;
-        std::string topic = resTokenInfo.resTopic;
-
-        cJSON *root = cJSON_CreateObject();
-        addResObject(root, resTokenInfo.mqttToken);
-        //   addPubilcObject(root);
-
-        switch (resInfo->gw13762DataType)
-        {
-        case GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR:
-            res = sendGetMasterNode(root, resInfo->info);
-            break;
-
-        case GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR:
-            res = sendCommonResponse(root, resInfo->info);
-            break;
-
-        case GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE:
-            res = sendCommonResponse(root, resInfo->info);
-            break;
-
-        case GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM:
-            res = sendGetAcqFilesNum(root, resInfo->info);
-            break;
-        case GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO:
-            res = sendGetAcqFilesInfo(root, resInfo->info);
-            break;
-        case GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE:
-            res = sendCommonResponse(root, resInfo->info);
-            break;
-        case GW1376_2_DATA_TYPE_PARAM_INIT:
-            res = sendCommonResponse(root, resInfo->info);
-            break;
-
-        default:
-            res = -1;
-            break;
-        }
-
-        char *payload = NULL;
-        payload = cJSON_Print(root);
-        if (res >= 0)
-        {
-            int bRet = m_mqttControl->mqttPublish(masterserver, topic.c_str(), strlen(payload), payload, m_mInfo->nqos, false);
-            if (!bRet)
-            {
-                zlog_error(m_logc, "publish topic %s error", topic.c_str());
-            }
-            zlog_info(m_logc, "ccoRouter response : topic : [%s]\n%s", topic.c_str(), payload);
-        }
-        else
-        {
-            zlog_error(m_logc, "not found");
-        }
-        cJSON_Delete(root);
-        free(payload);
-        m_mqttResMap.erase(resInfo->index);
-        return 0;
+        CONCURRENT_INFO *concurrentInfo = (CONCURRENT_INFO *)resInfo->info;
+        char addrTmp[6] = {0};
+        reverseHexArraycom(addrTmp, concurrentInfo->addr, sizeof(addrTmp));
+        char strAddr[13] = {0};
+        hexArrayToString(addrTmp, sizeof(addrTmp), strAddr);
+        auto it = m_concurrentRes.find(std::string(strAddr));
+        topic = it->second;
+        addPubilcObject(root);
+        cJSON_AddItemToObject(root, "acqAddr", cJSON_CreateString(strAddr));
+        cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(concurrentInfo->proType));
+        std::string encodeBuf = encode_base64((unsigned char *)concurrentInfo->buffer, concurrentInfo->bufLen);
+        zlog_info(m_logc, "encodeBuf : [%s]", encodeBuf.c_str());
+        cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
     }
     else
     {
-        zlog_error(m_logc, "m_mqttResMap not found!");
-        return -1;
+        std::map<int, RES_TOKEN_INFO>::iterator mqttRes = m_mqttResMap.find(resInfo->index);
+        // zlog_info(m_logc, "m_mqttResMap.size() : [ %d ]  m_mqttResMap[ %d ] resTopic : [%s]", m_mqttResMap.size(), resInfo->index, mqttRes->second.resTopic.c_str());
+        dzlog_info("resInfo->gw13762DataType : [%d]", resInfo->gw13762DataType);
+        if (mqttRes != m_mqttResMap.end())
+        {
+            RES_TOKEN_INFO resTokenInfo = mqttRes->second;
+            topic = resTokenInfo.resTopic;
+            addResObject(root, resTokenInfo.mqttToken);
+            //   addPubilcObject(root);
+
+            switch (resInfo->gw13762DataType)
+            {
+            case GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR:
+                res = sendGetMasterNode(root, resInfo->info);
+                break;
+
+            case GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR:
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+
+            case GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE:
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM:
+                res = sendGetAcqFilesNum(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO:
+                res = sendGetAcqFilesInfo(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE:
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_PARAM_INIT:
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
+                break;
+                res = sendCommonResponse(root, resInfo->info);
+            default:
+                res = -1;
+                break;
+            }
+            m_mqttResMap.erase(resInfo->index);
+        }
+        else
+        {
+            zlog_error(m_logc, "m_mqttResMap not found!");
+            cJSON_Delete(root);
+            return -1;
+        }
     }
+    char *payload = NULL;
+    payload = cJSON_Print(root);
+    if (res >= 0)
+    {
+        int bRet = m_mqttControl->mqttPublish(masterserver, topic.c_str(), strlen(payload), payload, m_mInfo->nqos, false);
+        if (!bRet)
+        {
+            zlog_error(m_logc, "publish topic %s error", topic.c_str());
+        }
+        zlog_info(m_logc, "ccoRouter response : topic : [%s]\n%s", topic.c_str(), payload);
+    }
+    else
+    {
+        zlog_error(m_logc, "not found");
+    }
+    cJSON_Delete(root);
+    free(payload);
+    return 0;
 }
 
 int CcoControl::sendGetMasterNode(cJSON *root, void *addr)
@@ -776,6 +855,11 @@ int CcoControl::sendGetAcqFilesNum(cJSON *root, void *number)
 
 int CcoControl::sendGetAcqFilesInfo(cJSON *root, void *info)
 {
+    if (info == NULL)
+    {
+        zlog_error(m_logc, "info is null");
+        return -1;
+    }
     ACQ_FILES_INFO *acqFilesInfo = (ACQ_FILES_INFO *)info;
     cJSON *body = cJSON_CreateArray();
 
@@ -783,14 +867,16 @@ int CcoControl::sendGetAcqFilesInfo(cJSON *root, void *info)
     {
         char addr[6] = {0};
         char msg[13] = {0};
+
         for (int i = 0; i < acqFilesInfo->validNum; i++)
         {
 
             memset(addr, 0, sizeof(addr));
             memset(msg, 0, sizeof(msg));
+
             cJSON *item = cJSON_CreateObject();
             hexArrayToString(acqFilesInfo->fileInfos[i].addr, 6, msg);
-            // hdzlog_info(acqFilesInfo->fileInfos[i].addr, 6);
+
             cJSON_AddItemToObject(item, "acqAddr", cJSON_CreateString(msg));
             cJSON_AddItemToObject(item, "macAddr", cJSON_CreateString("000000000000"));
             cJSON_AddItemToObject(item, "proType", cJSON_CreateNumber(acqFilesInfo->fileInfos[i].proType));
@@ -810,8 +896,15 @@ int CcoControl::sendGetAcqFilesInfo(cJSON *root, void *info)
             }
         }
     }
+
     cJSON_AddItemToObject(root, "body", body);
     free(acqFilesInfo->fileInfos);
+
+    for (const auto &pair : m_fileInfosMap)
+    {
+        // std::cout << pair.first << " => " << pair.second << std::endl;
+        zlog_info(m_logc, "addr : [%s] proType : [%d]", pair.first.c_str(), pair.second);
+    }
     return 0;
 }
 
@@ -923,6 +1016,20 @@ int CcoControl::addResObject(cJSON *root, int token)
     cJSON_AddItemToObject(root, "token", cJSON_CreateString(sztoken));
     char time[64];
     sys_gettime_timestamp(time);
+    cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(time));
+    return token;
+}
+
+int CcoControl::addPubilcObject(cJSON *root)
+{
+    char sztoken[10];
+    sprintf(sztoken, "%d", m_token);
+    int token = m_token;
+    m_token++;
+    cJSON_AddItemToObject(root, "token", cJSON_CreateString(sztoken));
+    char time[64];
+    sys_gettime_timestamp(time);
+
     cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(time));
     return token;
 }

@@ -40,7 +40,7 @@ typedef union
 	CP56_TIME2A_T time_t;
 } CP56_TIME2A;
 
-
+void com_btos(const char *inBCD, char *outStr, int len);
 // 反转数组
 void reverseHexArraycom(char *outArray, char *hexArray, int length);
 

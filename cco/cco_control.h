@@ -114,14 +114,17 @@ public:
     void dataInit(const char *topic, const char *message);
 
 private:
+    int m_token;
     PROTOCOL_GW1376_2_DATA *m_pdata;
     std::map<int, RES_TOKEN_INFO> m_mqttResMap; // 用于mqtt返回 第一个是1376.2下发的token  第二个是返回的mqtt的token和restopic结构体
     zlog_category_t *m_logc;                    // zlog 指針
     std::map<std::string, int> m_ccoTopicInfo;
+
     MqttControl *m_mqttControl; // MQTT接口类指针
     MQTT_INFO *m_mInfo;         // MQTT 配置信息，配置文件中获取
 
-    std::map<std::string , int > m_fileInfosMap; //用于并发采集和透传 string为从节点地址，int为协议类型
+    std::map<std::string, int> m_fileInfosMap;          // 用于并发采集和透传 string为从节点地址，int为协议类型
+    std::map<std::string, std::string> m_concurrentRes; // 并发采集上报，key addr，value topic发完就删
 
     void paraInit();
     int parseGetMasterNode(std::string topic, std::string message); // 解析 查询主节点地址
@@ -149,6 +152,7 @@ private:
     int sendCommonResponse(cJSON *root, void *info); // 通用响应
     std::string getReason(int result);
     int addResObject(cJSON *root, int token);
+    int addPubilcObject(cJSON *root);
 };
 
 #endif

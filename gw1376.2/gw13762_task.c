@@ -56,7 +56,7 @@ int gw13762_task_destroy(GW13762_TASK *pdata)
 
 bool gw13762_task_idle(GW13762_TASK *pdata)
 {
-    
+
     if (pdata->plist->len > 0)
     {
         return false;
@@ -439,7 +439,7 @@ int gw13762_task_read_queue_init(GW13762_TASK *pdata)
 
     data.type = GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR;
     gw13762_task_push(pdata, &data);
-
+    /*
     data.type = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM;
     gw13762_task_push(pdata, &data);
 
@@ -451,6 +451,7 @@ int gw13762_task_read_queue_init(GW13762_TASK *pdata)
 
     data.type = GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP;
     gw13762_task_push(pdata, &data);
+    */
 
     return 0;
 }

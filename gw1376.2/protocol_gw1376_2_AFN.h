@@ -174,7 +174,6 @@ int protocol_gw1376_AFN05_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata);
  */
 int protocol_gw1376_AFN05_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata);
 
-
 /**
  *  \brief AFN05 F2 数据处理
  *
@@ -319,7 +318,6 @@ int protocol_gw1376_AFN10_Fn21_up(PROTOCOL_GW1376_2_DATA *pdata);
 int protocol_gw1376_AFN10_Fn21_down_all(PROTOCOL_GW1376_2_DATA *pdata);
 int protocol_gw1376_AFN10_Fn21_up_all(PROTOCOL_GW1376_2_DATA *pdata);
 
-
 /**
  *  \brief AFN10 F2 路由运行状态
  *
@@ -397,5 +395,28 @@ int protocol_gw1376_AFN11_Fn03_down(PROTOCOL_GW1376_2_DATA *pdata);
  *  \return =0 成功
  */
 int protocol_gw1376_AFN11_Fn03_up(PROTOCOL_GW1376_2_DATA *pdata);
+
+
+/**
+ *  \brief AFNF1 F1 数据下发
+ *
+ *  并发抄表
+ *
+ *  \param
+ *  \return <0 失败
+ *  \return =0 成功
+ */
+int protocol_gw1376_AFNF1_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata);
+
+/**
+ *  \brief AFNF1 F1 数据处理
+ *
+ *  并发抄表
+ *
+ *  \param
+ *  \return <0 失败
+ *  \return =0 成功
+ */
+int protocol_gw1376_AFNF1_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata);
 
 #endif /* _PROTOCOL_GW1376_2_AFN_H_ */
