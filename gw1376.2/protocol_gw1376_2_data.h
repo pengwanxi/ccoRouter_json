@@ -170,7 +170,7 @@ typedef struct
     char addr[6];      // 地址
     int proType;       // 协议类型
     int bufLen;        // 报文长度
-    char buffer[2048]; // 报文
+    char buffer[PROTOCOL_GW1376_2_APPLY_DATA_LEN]; // 报文
 } CONCURRENT_INFO;
 
 // 从节点信息

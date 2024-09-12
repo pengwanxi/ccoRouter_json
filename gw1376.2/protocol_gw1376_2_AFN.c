@@ -1018,17 +1018,19 @@ int protocol_gw1376_AFNF1_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
         return -1;
     }
 
-    CONCURRENT_INFO concurrentInfo;
-
+    CONCURRENT_INFO concurrentInfo = {0};
     concurrentInfo.proType = papply_region->unit_buf[0];
-    int bufLen = MAKEWORD(papply_region->unit_buf[2], papply_region->unit_buf[3]);
-    concurrentInfo.bufLen = bufLen;
-    memcpy(concurrentInfo.buffer, papply_region->unit_buf + 4, bufLen);
 
+    int bufLen = MAKEWORD(papply_region->unit_buf[1], papply_region->unit_buf[2]);
+    concurrentInfo.bufLen = bufLen;
+    // dzlog_info("proType : [%d] bufLen : [%d] ", concurrentInfo.proType, bufLen);
+    memcpy(concurrentInfo.buffer, papply_region->unit_buf + 3, bufLen);
+    memcpy(concurrentInfo.addr, precv->addr_region.src, sizeof(concurrentInfo.addr));
+    //hdzlog_info(concurrentInfo.buffer, bufLen);
     RES_INFO resInfo;
     resInfo.isReport = true;
     resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_NULL;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_CONCURRENT_METER_READING;
     resInfo.info = (void *)&concurrentInfo;
     resInfo.infoSize = sizeof(CONCURRENT_INFO);
     ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));

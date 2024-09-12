@@ -91,8 +91,8 @@ void AppControl::start()
     serialRecvThread.detach();
 
     // 串口处理线程
-    std::thread dealSerialRecvThread(&AppControl::dealSerialRecvThreadFunc, this);
-    dealSerialRecvThread.detach();
+    // std::thread dealSerialRecvThread(&AppControl::dealSerialRecvThreadFunc, this);
+    // dealSerialRecvThread.detach();
 
     // mqtt消息返回线程
     std::thread mqttRecvThread(&AppControl::mqttRecvThreadFunc, this);
@@ -188,6 +188,7 @@ void AppControl::serialSendThreadFunc()
                     afnInfo.result = 0;
                     RES_INFO resInfo;
                     resInfo.index = pdata->send.ptask_data->index;
+                    resInfo.isReport = false;
                     resInfo.info = (void *)&afnInfo;
                     resInfo.infoSize = sizeof(AFN00_INFO);
                     resInfo.gw13762DataType = pdata->type;
@@ -201,12 +202,13 @@ void AppControl::serialSendThreadFunc()
                     afnInfo.result = 0;
                     RES_INFO resInfo;
                     resInfo.index = pdata->send.ptask_data->index;
+                    resInfo.isReport = false;
                     resInfo.info = (void *)&afnInfo;
                     resInfo.infoSize = sizeof(AFN00_INFO);
                     resInfo.gw13762DataType = pdata->type;
                     ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
                 }
-            
+
                 // hzlog_info(m_logc, buf, len);
             }
             continue;
@@ -240,6 +242,8 @@ void AppControl::serialRecvThreadFunc()
         send.size = size;
         send.message = std::string(recvBuf, send.size);
         m_uartQueue->push(send);
+
+        dealMessage(&send);
     }
 }
 // 处理串口消息线程

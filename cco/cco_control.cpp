@@ -554,9 +554,6 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
     char addr[6] = {0};
     int len;
     stringToHexArray(acqAddr->valuestring, addr, &len);
-
-    m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
-
     cJSON *dataCJSON = cJSON_GetObjectItemCaseSensitive(root, "data");
     if (!cJSON_IsString(dataCJSON))
     {
@@ -576,6 +573,36 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
     auto it = m_fileInfosMap.find(std::string(acqAddr->valuestring));
     if (it != m_fileInfosMap.end())
     {
+        auto conIt = m_concurrentRes.find(acqAddr->valuestring);
+        if (conIt != m_concurrentRes.end())
+        {
+            cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
+            if (!cJSON_IsNumber(token))
+            {
+                zlog_error(m_logc, "cJson parse error");
+                return -1;
+            }
+            cJSON *sendRoot = cJSON_CreateObject();
+
+            addResObject(sendRoot, token->valueint);
+            cJSON_AddItemToObject(sendRoot, "status", cJSON_CreateNumber(-1));
+            cJSON_AddItemToObject(sendRoot, "reason", cJSON_CreateString("In READ_METER State"));
+            char *payload = NULL;
+            payload = cJSON_Print(sendRoot);
+
+            int bRet = m_mqttControl->mqttPublish(masterserver, topic.c_str(), strlen(payload), payload, m_mInfo->nqos, false);
+            if (!bRet)
+            {
+                zlog_error(m_logc, "publish topic %s error", topic.c_str());
+            }
+            zlog_info(m_logc, "ccoRouter response : topic : [%s]\n%s", topic.c_str(), payload);
+            cJSON_Delete(sendRoot);
+            free(payload);
+            cJSON_Delete(root);
+            return -1;
+        }
+        m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
+
         int index = 0;
         char sendData[1024] = {0};
         GW13762_TASK_DATA data;
@@ -742,7 +769,7 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
     int res = 0;
     RES_INFO *resInfo = (RES_INFO *)data;
     cJSON *root = cJSON_CreateObject();
-    if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_NULL && resInfo->isReport == true)
+    if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING && resInfo->isReport == true)
     {
         CONCURRENT_INFO *concurrentInfo = (CONCURRENT_INFO *)resInfo->info;
         char addrTmp[6] = {0};
@@ -750,13 +777,25 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         char strAddr[13] = {0};
         hexArrayToString(addrTmp, sizeof(addrTmp), strAddr);
         auto it = m_concurrentRes.find(std::string(strAddr));
+        if (it == m_concurrentRes.end())
+        {
+            zlog_error(m_logc, "m_concurrentRes not found!");
+            cJSON_Delete(root);
+            return -1;
+        }
         topic = it->second;
         addPubilcObject(root);
         cJSON_AddItemToObject(root, "acqAddr", cJSON_CreateString(strAddr));
         cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(concurrentInfo->proType));
-        std::string encodeBuf = encode_base64((unsigned char *)concurrentInfo->buffer, concurrentInfo->bufLen);
-        zlog_info(m_logc, "encodeBuf : [%s]", encodeBuf.c_str());
+
+        char *str = (char *)malloc((concurrentInfo->bufLen * 2 + 1) * sizeof(char));
+
+        hexArrayToString(concurrentInfo->buffer, concurrentInfo->bufLen, str);
+        std::string encodeBuf = encode_base64((unsigned char *)str, concurrentInfo->bufLen * 2);
+        zlog_info(m_logc, "encodeBuf : [%s]", str);
         cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
+        free(str);
+        m_concurrentRes.erase(std::string(strAddr));
     }
     else
     {
@@ -796,8 +835,9 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = sendCommonResponse(root, resInfo->info);
                 break;
             case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
-                break;
+
                 res = sendCommonResponse(root, resInfo->info);
+                break;
             default:
                 res = -1;
                 break;
@@ -910,9 +950,11 @@ int CcoControl::sendGetAcqFilesInfo(cJSON *root, void *info)
 
 int CcoControl::sendCommonResponse(cJSON *root, void *info)
 {
+    // printf("============================>111");
     AFN00_INFO *afnInfo = (AFN00_INFO *)info;
     int status;
     std::string reason;
+
     if (afnInfo->Fn == 1)
     {
         status = 0;

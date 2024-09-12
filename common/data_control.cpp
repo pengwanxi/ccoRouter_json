@@ -65,7 +65,7 @@ void DataControl::dataInit()
     m_ccoCtl->dataInit(topic1.c_str(), payload);
     cJSON_Delete(root1);
     free(payload);
-    usleep(200 * 1000);
+    usleep(300 * 1000);
 
     std::string topic = "test/ccoRouter/JSON/get/request/acqQueryFiles";
     cJSON *root = cJSON_CreateObject();
@@ -73,12 +73,12 @@ void DataControl::dataInit()
     cJSON_AddItemToObject(root, "prio", cJSON_CreateNumber(1));
     cJSON_AddItemToObject(root, "startIndex", cJSON_CreateNumber(1));
     cJSON_AddItemToObject(root, "curMeterNum", cJSON_CreateNumber(255));
-
     payload = NULL;
     payload = cJSON_Print(root);
     m_ccoCtl->dataInit(topic.c_str(), payload);
     cJSON_Delete(root);
     free(payload);
+    usleep(200 * 1000);
 }
 
 void DataControl::set_timeout(int timeout)
