@@ -1,6 +1,7 @@
 #include "cco_control.h"
 #include "gw13762_task.h"
 #include "protocol_gw1376_2_data.h"
+#include "protocol_gw1376_2.h"
 #include "common_utils.h"
 
 #include <array>
@@ -11,6 +12,7 @@
 #include <sys/utsname.h>
 #include <thread>
 
+std::map<int, RES_TOKEN_INFO> *CcoControl::m_mqttResMap_tmp = NULL;
 CcoControl::CcoControl()
 {
 
@@ -18,6 +20,8 @@ CcoControl::CcoControl()
     m_logc = zlog_get_category("ccoControl");
     m_token = 1;
     paraInit();
+    m_mqttResMap_tmp = &m_mqttResMap;
+    set_gettype_func(get13762TypeForToken);
 }
 
 CcoControl::~CcoControl()
@@ -30,44 +34,60 @@ void CcoControl::setMqttControl(MqttControl *mqttControl, MQTT_INFO *mInfo)
     m_mInfo = mInfo;
 }
 
+int CcoControl::get13762TypeForToken(int token)
+{
+    std::map<int, RES_TOKEN_INFO>::iterator mqttRes = m_mqttResMap_tmp->find(token);
+    // zlog_info(m_logc, "m_mqttResMap.size() : [ %d ]  m_mqttResMap[ %d ] resTopic : [%s]", m_mqttResMap.size(), resInfo->index, mqttRes->second.resTopic.c_str());
+    // dzlog_info("resInfo->gw13762DataType : [%d]", resInfo->gw13762DataType);
+    if (mqttRes != m_mqttResMap_tmp->end())
+    {
+        RES_TOKEN_INFO resTokenInfo = mqttRes->second;
+        return resTokenInfo.gw13762Type;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 void CcoControl::paraInit()
 {
-    m_ccoTopicInfo.emplace(GET_MASTERNODE, GET_MASTERNODE_NUM);
-    m_ccoTopicInfo.emplace(SET_MASTERNODE, SET_MASTERNODE_NUM);
-    m_ccoTopicInfo.emplace(SET_ACQ_ADD_FILES, SET_ACQ_ADD_FILES_NUM);
-    m_ccoTopicInfo.emplace(GET_ACQ_QUERY_FILES, GET_ACQ_QUERY_FILES_NUM);
-    m_ccoTopicInfo.emplace(ACTION_DEL_ACQFILES, ACTION_DEL_ACQFILES_NUM);
-    m_ccoTopicInfo.emplace(ACTION_CLEAR_ACQFILES, ACTION_CLEAR_ACQFILES_NUM);
-    m_ccoTopicInfo.emplace(GET_ACQFILES_NUM, GET_ACQFILES_NUM_NUM);
-    m_ccoTopicInfo.emplace(ACTION_EN_SEARCHMETER, ACTION_EN_SEARCHMETER_NUM);
-    m_ccoTopicInfo.emplace(ACTION_DIS_SEARCHMETER, ACTION_DIS_SEARCHMETER_NUM);
-    m_ccoTopicInfo.emplace(GET_MONITOR_NODEDELAY, GET_MONITOR_NODEDELAY_NUM);
-    m_ccoTopicInfo.emplace(ACTION_MONITOR_NODE, ACTION_MONITOR_NODE_NUM);
-    m_ccoTopicInfo.emplace(ACTION_CONCURRENT, ACTION_CONCURRENT_NUM);
-    m_ccoTopicInfo.emplace(ACTION_DATATRANS, ACTION_DATATRANS_NUM);
-    m_ccoTopicInfo.emplace(GET_NETTOPO_INFO, GET_NETTOPO_INFO_NUM);
-    m_ccoTopicInfo.emplace(GET_CHIP_INFORMATION, GET_CHIP_INFORMATION_NUM);
-    m_ccoTopicInfo.emplace(GET_MULTINET_INFORMATION, GET_MULTINET_INFORMATION_NUM);
-    m_ccoTopicInfo.emplace(GET_NODELINE_INFORMATION, GET_NODELINE_INFORMATION_NUM);
-    m_ccoTopicInfo.emplace(GET_NETWORK_SIZE, GET_NETWORK_SIZE_NUM);
-    m_ccoTopicInfo.emplace(GET_SLAVE_MODEID, GET_SLAVE_MODEID_NUM);
-    m_ccoTopicInfo.emplace(GET_HOST_MODEID, GET_HOST_MODEID_NUM);
-    m_ccoTopicInfo.emplace(GET_MODE_INFO, GET_MODE_INFO_NUM);
-    m_ccoTopicInfo.emplace(GET_NODE_VERSION, GET_NODE_VERSION_NUM);
-    m_ccoTopicInfo.emplace(SET_HPLC_FREQ, SET_HPLC_FREQ_NUM);
-    m_ccoTopicInfo.emplace(GET_HPLC_FREQ, GET_HPLC_FREQ_NUM);
-    m_ccoTopicInfo.emplace(ACTION_IDENTIAREA_CFG, ACTION_IDENTIAREA_CFG_NUM);
-    m_ccoTopicInfo.emplace(ACTION_NODEOFFLINE_CFG, ACTION_NODEOFFLINE_CFG_NUM);
-    m_ccoTopicInfo.emplace(ACTION_REFUSE_NODEREPORT_CFG, ACTION_REFUSE_NODEREPORT_CFG_NUM);
-    m_ccoTopicInfo.emplace(GET_BROADCAST_DELAY, GET_BROADCAST_DELAY_NUM);
-    m_ccoTopicInfo.emplace(ACTION_BROADCAST_CMD, ACTION_BROADCAST_CMD_NUM);
-    m_ccoTopicInfo.emplace(GET_METERING_STATE, GET_METERING_STATE_NUM);
-    m_ccoTopicInfo.emplace(ACTION_START_FILEUPGRADE, ACTION_START_FILEUPGRADE_NUM);
-    m_ccoTopicInfo.emplace(GET_FILEUPGRADE_STATE, GET_FILEUPGRADE_STATE_NUM);
-    m_ccoTopicInfo.emplace(ACTION_PAUSE_METERING, ACTION_PAUSE_METERING_NUM);
-    m_ccoTopicInfo.emplace(ACTION_RESUME_METERING, ACTION_RESUME_METERING_NUM);
-    m_ccoTopicInfo.emplace(ACTION_RESTART_METERING, ACTION_RESTART_METERING_NUM);
-    m_ccoTopicInfo.emplace(GET_MODULEINFO, GET_MODULEINFO_NUM);
+    m_ccoTopicInfo.emplace(GET_MASTERNODE, GET_MASTERNODE_ENUM);
+    m_ccoTopicInfo.emplace(SET_MASTERNODE, SET_MASTERNODE_ENUM);
+    m_ccoTopicInfo.emplace(SET_ACQ_ADD_FILES, SET_ACQ_ADD_FILES_ENUM);
+    m_ccoTopicInfo.emplace(GET_ACQ_QUERY_FILES, GET_ACQ_QUERY_FILES_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_DEL_ACQFILES, ACTION_DEL_ACQFILES_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_CLEAR_ACQFILES, ACTION_CLEAR_ACQFILES_ENUM);
+    m_ccoTopicInfo.emplace(GET_ACQFILES_NUM, GET_ACQFILES_NUM_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_EN_SEARCHMETER, ACTION_EN_SEARCHMETER_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_DIS_SEARCHMETER, ACTION_DIS_SEARCHMETER_ENUM);
+    m_ccoTopicInfo.emplace(GET_MONITOR_NODEDELAY, GET_MONITOR_NODEDELAY_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_MONITOR_NODE, ACTION_MONITOR_NODE_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_CONCURRENT, ACTION_CONCURRENT_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_DATATRANS, ACTION_DATATRANS_ENUM);
+    m_ccoTopicInfo.emplace(GET_NETTOPO_INFO, GET_NETTOPO_INFO_ENUM);
+    m_ccoTopicInfo.emplace(GET_CHIP_INFORMATION, GET_CHIP_INFORMATION_ENUM);
+    m_ccoTopicInfo.emplace(GET_MULTINET_INFORMATION, GET_MULTINET_INFORMATION_ENUM);
+    m_ccoTopicInfo.emplace(GET_NODELINE_INFORMATION, GET_NODELINE_INFORMATION_ENUM);
+    m_ccoTopicInfo.emplace(GET_NETWORK_SIZE, GET_NETWORK_SIZE_ENUM);
+    m_ccoTopicInfo.emplace(GET_SLAVE_MODEID, GET_SLAVE_MODEID_ENUM);
+    m_ccoTopicInfo.emplace(GET_HOST_MODEID, GET_HOST_MODEID_ENUM);
+    m_ccoTopicInfo.emplace(GET_MODE_INFO, GET_MODE_INFO_ENUM);
+    m_ccoTopicInfo.emplace(GET_NODE_VERSION, GET_NODE_VERSION_ENUM);
+    m_ccoTopicInfo.emplace(SET_HPLC_FREQ, SET_HPLC_FREQ_ENUM);
+    m_ccoTopicInfo.emplace(GET_HPLC_FREQ, GET_HPLC_FREQ_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_IDENTIAREA_CFG, ACTION_IDENTIAREA_CFG_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_NODEOFFLINE_CFG, ACTION_NODEOFFLINE_CFG_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_REFUSE_NODEREPORT_CFG, ACTION_REFUSE_NODEREPORT_CFG_ENUM);
+    m_ccoTopicInfo.emplace(GET_BROADCAST_DELAY, GET_BROADCAST_DELAY_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_BROADCAST_CMD, ACTION_BROADCAST_CMD_ENUM);
+    m_ccoTopicInfo.emplace(GET_METERING_STATE, GET_METERING_STATE_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_START_FILEUPGRADE, ACTION_START_FILEUPGRADE_ENUM);
+    m_ccoTopicInfo.emplace(GET_FILEUPGRADE_STATE, GET_FILEUPGRADE_STATE_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_PAUSE_METERING, ACTION_PAUSE_METERING_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_RESUME_METERING, ACTION_RESUME_METERING_ENUM);
+    m_ccoTopicInfo.emplace(ACTION_RESTART_METERING, ACTION_RESTART_METERING_ENUM);
+    m_ccoTopicInfo.emplace(GET_MODULEINFO, GET_MODULEINFO_ENUM);
 }
 
 void CcoControl::dataInit(const char *topic, const char *message)
@@ -105,20 +125,16 @@ int CcoControl::parseCcoData(const char *topic, const char *message)
     {
         zlog_error(m_logc, "cJson parse error");
     }
-    cJSON *element;
-    for (element = (root != NULL) ? root->child : NULL; element != NULL; element = element->next)
+
+    cJSON *cjson_token = cJSON_GetObjectItemCaseSensitive(root, "token");
+    if (!cJSON_IsNumber(cjson_token))
     {
-        if (element->type == cJSON_Number)
-        {
-            if (strcmp(element->string, "token") == 0)
-            {
-                resToken = element->valueint;
-                break;
-            }
-        }
+        dzlog_error("cJson parse error");
+        return -1;
     }
+    resTokenInfo.mqttToken = cjson_token->valueint;
+
     cJSON_Delete(root);
-    resTokenInfo.mqttToken = resToken;
 
     auto it = m_ccoTopicInfo.find(cTopic);
     if (it == m_ccoTopicInfo.end())
@@ -132,114 +148,147 @@ int CcoControl::parseCcoData(const char *topic, const char *message)
     int res = -1;
     switch (reqType)
     {
-    case GET_MASTERNODE_NUM:
+    case GET_MASTERNODE_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR;
         res = parseGetMasterNode(topic, message);
-        break;
+    }
+    break;
 
-    case SET_MASTERNODE_NUM:
+    case SET_MASTERNODE_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR;
         res = parseSetMasterNode(topic, message);
-        break;
-    case SET_ACQ_ADD_FILES_NUM:
+    }
+    break;
+    case SET_ACQ_ADD_FILES_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
         res = parseSetAcqAddFiles(topic, message);
-        break;
-    case GET_ACQ_QUERY_FILES_NUM:
+    }
+    break;
+    case GET_ACQ_QUERY_FILES_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO;
         res = parseGetAcqQueryFiles(topic, message);
-        break;
-    case ACTION_DEL_ACQFILES_NUM:
+    }
+    break;
+    case ACTION_DEL_ACQFILES_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE;
         res = parseDelAcqFiles(topic, message);
-        break;
-    case ACTION_CLEAR_ACQFILES_NUM:
+    }
+
+    break;
+    case ACTION_CLEAR_ACQFILES_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_PARAM_INIT;
         res = parseClearAcqFiles(topic, message);
-        break;
-    case GET_ACQFILES_NUM_NUM:
+    }
+
+    break;
+    case GET_ACQFILES_NUM_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM;
         res = parseGetAcqFilesNum(topic, message);
-        break;
-    case ACTION_EN_SEARCHMETER_NUM:
+    }
+    break;
+    case ACTION_EN_SEARCHMETER_ENUM:
 
         break;
-    case ACTION_DIS_SEARCHMETER_NUM:
+    case ACTION_DIS_SEARCHMETER_ENUM:
 
         break;
-    case GET_MONITOR_NODEDELAY_NUM:
+    case GET_MONITOR_NODEDELAY_ENUM:
 
         break;
-    case ACTION_MONITOR_NODE_NUM:
+    case ACTION_MONITOR_NODE_ENUM:
 
         break;
-    case ACTION_CONCURRENT_NUM:
+    case ACTION_CONCURRENT_ENUM:
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_CONCURRENT_METER_READING;
         res = parseActionConCurrent(resTopic, message);
-        break;
-    case ACTION_DATATRANS_NUM:
+    }
+    break;
+    case ACTION_DATATRANS_ENUM:
         // res = parseActionDataTrans(topic, message);
         break;
-    case GET_NETTOPO_INFO_NUM:
+    case GET_NETTOPO_INFO_ENUM:
 
         break;
-    case GET_CHIP_INFORMATION_NUM:
+    case GET_CHIP_INFORMATION_ENUM:
 
         break;
-    case GET_MULTINET_INFORMATION_NUM:
+    case GET_MULTINET_INFORMATION_ENUM:
 
         break;
-    case GET_NODELINE_INFORMATION_NUM:
+    case GET_NODELINE_INFORMATION_ENUM:
 
         break;
-    case GET_NETWORK_SIZE_NUM:
+    case GET_NETWORK_SIZE_ENUM:
 
         break;
-    case GET_HOST_MODEID_NUM:
+    case GET_HOST_MODEID_ENUM:
 
         break;
-    case GET_SLAVE_MODEID_NUM:
+    case GET_SLAVE_MODEID_ENUM:
 
         break;
-    case GET_MODE_INFO_NUM:
+    case GET_MODE_INFO_ENUM:
 
         break;
-    case GET_NODE_VERSION_NUM:
+    case GET_NODE_VERSION_ENUM:
 
         break;
-    case SET_HPLC_FREQ_NUM:
+    case SET_HPLC_FREQ_ENUM:
 
         break;
-    case GET_HPLC_FREQ_NUM:
+    case GET_HPLC_FREQ_ENUM:
 
         break;
-    case ACTION_IDENTIAREA_CFG_NUM:
+    case ACTION_IDENTIAREA_CFG_ENUM:
 
         break;
-    case ACTION_NODEOFFLINE_CFG_NUM:
+    case ACTION_NODEOFFLINE_CFG_ENUM:
 
         break;
-    case ACTION_REFUSE_NODEREPORT_CFG_NUM:
+    case ACTION_REFUSE_NODEREPORT_CFG_ENUM: // 禁止/允许节点上报
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP;
+        res = parseActionRefuseNodeReport(topic, message);
+    }
+
+    break;
+    case GET_BROADCAST_DELAY_ENUM:
 
         break;
-    case GET_BROADCAST_DELAY_NUM:
+    case ACTION_BROADCAST_CMD_ENUM: // 广播
+    {
+        resTokenInfo.gw13762Type = GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA;
+        res = parseActionBroadcastCmd(topic, message);
+    }
+    break;
+    case GET_METERING_STATE_ENUM:
 
         break;
-    case ACTION_BROADCAST_CMD_NUM:
+    case ACTION_START_FILEUPGRADE_ENUM:
 
         break;
-    case GET_METERING_STATE_NUM:
+    case GET_FILEUPGRADE_STATE_ENUM:
 
         break;
-    case ACTION_START_FILEUPGRADE_NUM:
-
-        break;
-    case GET_FILEUPGRADE_STATE_NUM:
-
-        break;
-    case ACTION_PAUSE_METERING_NUM:
+    case ACTION_PAUSE_METERING_ENUM:
 
         break;
 
-    case ACTION_RESUME_METERING_NUM:
+    case ACTION_RESUME_METERING_ENUM:
 
         break;
-    case ACTION_RESTART_METERING_NUM:
+    case ACTION_RESTART_METERING_ENUM:
 
         break;
-    case GET_MODULEINFO_NUM:
+    case GET_MODULEINFO_ENUM:
 
         break;
 
@@ -247,12 +296,12 @@ int CcoControl::parseCcoData(const char *topic, const char *message)
         res = -1;
         break;
     }
-    if (res != -1)
+    dzlog_info("=======>mqtt recv token : [%d] , send 13762 token : [%d]  ", resTokenInfo.mqttToken, res);
+    if (res >= 0)
     {
         resTokenInfo.proToken = res;
         m_mqttResMap.emplace(resTokenInfo.proToken, resTokenInfo);
     }
-
     return res;
 }
 
@@ -280,9 +329,15 @@ int CcoControl::parseSetMasterNode(std::string topic, std::string message)
     if (root == NULL)
     {
         zlog_error(m_logc, "cJson parse error");
+        return -1;
     }
 
     cJSON *pmasterNode = cJSON_GetObjectItemCaseSensitive(root, "masterNode");
+    if (!cJSON_IsString(pmasterNode))
+    {
+        zlog_error(m_logc, "cJson parse error");
+        return 0;
+    }
     std::string masterNode = pmasterNode->valuestring;
     int len = 0;
     char addr[6] = {0};
@@ -297,7 +352,7 @@ int CcoControl::parseSetMasterNode(std::string topic, std::string message)
     memcpy(data.buf, addr, sizeof(addr));
     data.len = sizeof(addr);
     int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
     {
         zlog_error(m_logc, "gw13762_task_push error!");
@@ -399,7 +454,7 @@ int CcoControl::parseSetAcqAddFiles(std::string topic, std::string message)
     memcpy(data.buf, addAddr, index);
     data.len = index;
     int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
     {
         zlog_error(m_logc, "gw13762_task_push error!");
@@ -445,7 +500,7 @@ int CcoControl::parseGetAcqQueryFiles(std::string topic, std::string message)
     memcpy(data.buf, buf, sizeof(buf));
     data.len = sizeof(buf);
     int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
     {
         zlog_error(m_logc, "gw13762_task_push error!");
@@ -516,7 +571,7 @@ int CcoControl::parseDelAcqFiles(std::string topic, std::string message)
     memcpy(data.buf, delAddr, index);
     data.len = index;
     int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
     {
         zlog_error(m_logc, "gw13762_task_push error!");
@@ -570,12 +625,16 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
     hdzlog_info(base64DataBuf, bufLen);
 
     int gw13762Index = 0;
+
     auto it = m_fileInfosMap.find(std::string(acqAddr->valuestring));
+
     if (it != m_fileInfosMap.end())
     {
+        dzlog_info("acqAddr : [%s]", acqAddr->valuestring);
         auto conIt = m_concurrentRes.find(acqAddr->valuestring);
         if (conIt != m_concurrentRes.end())
         {
+
             cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
             if (!cJSON_IsNumber(token))
             {
@@ -601,6 +660,7 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
             cJSON_Delete(root);
             return -1;
         }
+
         m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
 
         int index = 0;
@@ -626,7 +686,7 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         memcpy(data.buf, sendData, index);
         data.len = index;
         gw13762Index = gw13762_task_push(ptask, &data);
-        protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+        // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
         if (gw13762Index < 0)
         {
             zlog_error(m_logc, "gw13762_task_push error!");
@@ -713,7 +773,7 @@ int CcoControl::parseActionDataTrans(std::string topic, std::string message)
     memcpy(data.buf, delAddr, index);
     data.len = index;
     int gw13762Index = gw13762_task_push(ptask, &data);
-    protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
     {
         zlog_error(m_logc, "gw13762_task_push error!");
@@ -762,7 +822,108 @@ int CcoControl::parseGetAcqFilesNum(std::string topic, std::string message)
     return gw13762Index;
 }
 
-// 打包发送mqtt报文
+int CcoControl::parseActionRefuseNodeReport(std::string topic, std::string message)
+{
+    GW13762_TASK *ptask = &m_pdata->task;
+    cJSON *root = cJSON_Parse(message.c_str());
+    if (root == NULL)
+    {
+        zlog_error(m_logc, "cJson parse error");
+    }
+
+    cJSON *autoUpSwitch = cJSON_GetObjectItemCaseSensitive(root, "switch");
+    if (!cJSON_IsNumber(autoUpSwitch))
+    {
+        zlog_error(m_logc, "cJson parse error");
+        return -1;
+    }
+    int autoUpFlag = autoUpSwitch->valueint;
+    cJSON_Delete(root);
+
+    GW13762_TASK_DATA data;
+    memset(&data, 0, sizeof(GW13762_TASK_DATA));
+    data.type = GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP;
+    data.ismanu_index = false;
+    data.buf[0] = autoUpFlag;
+    data.len = 1;
+    int gw13762Index = gw13762_task_push(ptask, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    if (gw13762Index < 0)
+    {
+        zlog_error(m_logc, "gw13762_task_push error!");
+        return -1;
+    }
+    return gw13762Index;
+}
+
+int CcoControl::parseActionBroadcastCmd(std::string topic, std::string message)
+{
+
+    GW13762_TASK *ptask = &m_pdata->task;
+    cJSON *root = cJSON_Parse(message.c_str());
+    if (root == NULL)
+    {
+        zlog_error(m_logc, "cJson parse error");
+    }
+    cJSON *proType = cJSON_GetObjectItemCaseSensitive(root, "proType");
+    if (!cJSON_IsNumber(proType))
+    {
+        zlog_error(m_logc, "cJson parse error");
+        return -1;
+    }
+
+    cJSON *dataCJSON = cJSON_GetObjectItemCaseSensitive(root, "data");
+    if (!cJSON_IsString(dataCJSON))
+    {
+        zlog_error(m_logc, "cJson parse error");
+        return -1;
+    }
+    std::string base64Data = decode_base64((unsigned char *)(dataCJSON->valuestring), strlen(dataCJSON->valuestring));
+    char base64DataBuf[2048];
+    char tmpBuf[2048];
+    sprintf(tmpBuf, "%s", base64Data.c_str());
+    // printf("String: %s\n", tmpBuf); // 输出 "Hello"
+    int bufLen;
+    stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
+    hdzlog_info(base64DataBuf, bufLen);
+
+    GW13762_TASK_DATA data;
+    memset(&data, 0, sizeof(GW13762_TASK_DATA));
+    data.type = GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA;
+    data.ismanu_index = false;
+
+    data.buf[0] = proType->valueint;
+    data.buf[1] = bufLen;
+    memcpy(&data.buf[2], base64DataBuf, bufLen);
+    data.len = bufLen + 2;
+    int gw13762Index = gw13762_task_push(ptask, &data);
+    // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
+    if (gw13762Index < 0)
+    {
+        zlog_error(m_logc, "gw13762_task_push error!");
+        return -1;
+    }
+    return gw13762Index;
+}
+
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
+/***********打包发送mqtt报文*************/
 int CcoControl::packSendMqttMsg(void *data, int dataSize)
 {
     std::string topic;
@@ -805,6 +966,7 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         if (mqttRes != m_mqttResMap.end())
         {
             RES_TOKEN_INFO resTokenInfo = mqttRes->second;
+
             topic = resTokenInfo.resTopic;
             addResObject(root, resTokenInfo.mqttToken);
             //   addPubilcObject(root);
@@ -814,11 +976,9 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
             case GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR:
                 res = sendGetMasterNode(root, resInfo->info);
                 break;
-
             case GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR:
                 res = sendCommonResponse(root, resInfo->info);
                 break;
-
             case GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE:
                 res = sendCommonResponse(root, resInfo->info);
                 break;
@@ -835,14 +995,22 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = sendCommonResponse(root, resInfo->info);
                 break;
             case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
-
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP:
+                res = sendCommonResponse(root, resInfo->info);
+                break;
+            case GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA:
                 res = sendCommonResponse(root, resInfo->info);
                 break;
             default:
                 res = -1;
                 break;
             }
-            m_mqttResMap.erase(resInfo->index);
+            if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+            {
+                m_mqttResMap.erase(resInfo->index);
+            }
         }
         else
         {
@@ -1053,9 +1221,7 @@ std::string CcoControl::getReason(int result)
 
 int CcoControl::addResObject(cJSON *root, int token)
 {
-    char sztoken[10];
-    sprintf(sztoken, "%d", token);
-    cJSON_AddItemToObject(root, "token", cJSON_CreateString(sztoken));
+    cJSON_AddItemToObject(root, "token", cJSON_CreateNumber(token));
     char time[64];
     sys_gettime_timestamp(time);
     cJSON_AddItemToObject(root, "timestamp", cJSON_CreateString(time));
@@ -1064,11 +1230,9 @@ int CcoControl::addResObject(cJSON *root, int token)
 
 int CcoControl::addPubilcObject(cJSON *root)
 {
-    char sztoken[10];
-    sprintf(sztoken, "%d", m_token);
     int token = m_token;
     m_token++;
-    cJSON_AddItemToObject(root, "token", cJSON_CreateString(sztoken));
+    cJSON_AddItemToObject(root, "token", cJSON_CreateNumber(token));
     char time[64];
     sys_gettime_timestamp(time);
 

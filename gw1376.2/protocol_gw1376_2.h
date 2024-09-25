@@ -8,6 +8,15 @@
 #include "protocol_gw1376_2_data.h"
 
 /**
+ *  \brief 获取13762类型 函数指针
+ *  \param void
+ *  \return int
+ */
+typedef int (*get13762Type_t)(int);
+
+void set_gettype_func(get13762Type_t func);
+
+/**
  *  \brief 获取发送报文
  *  \param BYTE *buf
  *  \param int *len

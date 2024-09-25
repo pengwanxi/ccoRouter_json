@@ -32,11 +32,11 @@ typedef signed char int8_t;
 
 // end
 
-
 typedef struct
 {
     int proToken;           // 下发1376.2token
     int mqttToken;          // mqtt返回token
+    int gw13762Type;        // 下发过来 对应1376.2的type
     std::string resTopic;   // 响应的topic
     std::string judgeTopic; // 返回时用来做判断的topic
 } RES_TOKEN_INFO;

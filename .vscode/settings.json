@@ -58,6 +58,8 @@
         "unistd.h": "c",
         "basetype.h": "c",
         "maths.h": "c",
-        "gw13762_task.h": "c"
-    }
+        "gw13762_task.h": "c",
+        "protocol_gw1376_2.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled"
 }

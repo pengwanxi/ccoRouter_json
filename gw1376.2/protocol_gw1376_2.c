@@ -4,6 +4,13 @@
 #include <stdio.h>
 #include "public.h"
 
+get13762Type_t get13762Type_func;
+
+void set_gettype_func(get13762Type_t func)
+{
+    get13762Type_func = func;
+}
+
 /**
  *  \brief 获取数据类型的报文
  *  \param BYTE *buf
@@ -77,6 +84,7 @@ static int protocol_gw1376_2_get_data(char *buf, int *len,
 
     case GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA:
     {
+        dzlog_debug("%s 启动广播", __FUNCTION__);
         rtn = protocol_gw1376_AFN05_Fn03_down(pdata);
     }
     break;
@@ -187,7 +195,14 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         return -1;
     }
     pdata->unpack_frame_error_count = 0;
-
+    dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
+    int res13762Type = get13762Type_func(precv->recvIndex);
+    dzlog_notice(" gw13762Type : [ %d ]", res13762Type);
+    if (res13762Type < 0)
+    {
+        dzlog_info("get13762Type_func not found for token!");
+        return -1;
+    }
     prm = protocol_gw1376_2_data_set_recv_prm(pdata);
     /* 询问回复的报文 */
     if (!prm)
@@ -204,7 +219,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         }
 
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
-        switch (ptdata->type)
+        switch (res13762Type) // ptdata->type
         {
         case GW1376_2_DATA_TYPE_HARD_INIT:
         case GW1376_2_DATA_TYPE_PARAM_INIT:
@@ -230,7 +245,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         break;
         case GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP:
         {
-            rtn = protocol_gw1376_AFN05_Fn02_up(pdata);
+            rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
         case GW1376_2_DATA_TYPE_WRITE_SUBNODE_TIMEOUT:
@@ -243,7 +258,6 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
             rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
-
         case GW1376_2_DATA_TYPE_TRANS_DATA:
         {
             rtn = protocol_gw1376_AFN02_Fn01_up(pdata);
@@ -281,7 +295,8 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
 
         case GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA:
         {
-            rtn = protocol_gw1376_AFN05_Fn03_up(pdata);
+            // rtn = protocol_gw1376_AFN05_Fn03_up(pdata);
+            // rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
 

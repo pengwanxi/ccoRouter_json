@@ -33,22 +33,11 @@ public:
     void packSendMqttMessage(void *data, int dataSize);
 
     void dataInit();
-
-    void frpcStop(void *userdata); // frpc程序关闭
-    bool frpcStart();
-    /*
-     *设备信息响应 type : 1主动上送 2响应
-     */
-    void devInfoSend(const char *message, int type);
-
-    void sendFrpcStatus(const char *message);
+    void gw13762ProcessBuf(std::string message, int len);
 
 private:
     int addPubilcObject(cJSON *root);
     int addResObject(cJSON *root, int toker);
-    bool frpcStart(const char *message); // frpc程序启动
-    int parseFrpcUpInfo(const char *message);
-    void stopFrpcThreadFunc();
 
 private:
     CcoControl *m_ccoCtl; // cco数据控制

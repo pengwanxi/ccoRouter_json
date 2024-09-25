@@ -300,8 +300,8 @@ int protocol_gw1376_AFN05_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
     if (psend->ptask_data != NULL && psend->ptask_data->type == GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR)
     {
         reverseHexArray(papply_region->unit_buf, psend->ptask_data->buf, 6);
+        papply_region->unit_len = 6;
     }
-    papply_region->unit_len = 6;
 
     return 0;
 }
@@ -334,19 +334,16 @@ int protocol_gw1376_AFN05_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
 int protocol_gw1376_AFN05_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata)
 {
     PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
-    PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
-        protocol_gw1376_2_send_apply_region_get(pdata);
-    /* APP_DATA *papp_data = app_data_get(); */
-    /* APP_CFG *pcfg = &papp_data->cfg; */
-
+    GW13762_TASK_DATA *ptask_data = psend->ptask_data;
+    PROTOCOL_GW1376_2_APPLY_REGION *regin = protocol_gw1376_2_send_apply_region_get(pdata);
     protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_CCO);
-
-    papply_region->AFN = 0x05;
-    papply_region->Fn = 0x02;
-
-    papply_region->unit_buf[0] =
-        psend->subnode_auto_up; /* 禁止子节点主动上报 */
-    papply_region->unit_len = 1;
+    if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP)
+    {
+        regin->AFN = 0x05;
+        regin->Fn = 2;
+        regin->unit_len = ptask_data->len;
+        memcpy(regin->unit_buf, ptask_data->buf, ptask_data->len);
+    }
 
     return 0;
 }
@@ -371,21 +368,16 @@ int protocol_gw1376_AFN05_Fn03_down(PROTOCOL_GW1376_2_DATA *pdata)
         protocol_gw1376_2_send_apply_region_get(pdata);
     /* APP_DATA *papp_data = app_data_get(); */
     /* APP_CFG *pcfg = &papp_data->cfg; */
+    // protocol_gw1376_2_sta_get_protocol_frame(papply_region->unit_buf, &papply_region->unit_len, pdata);
 
-    protocol_gw1376_2_sta_get_protocol_frame(papply_region->unit_buf,
-                                             &papply_region->unit_len, pdata);
-
+    char dstaddr[6] = {0x99, 0x99, 0x99, 0x99, 0x99, 0x99};
+    memset(psend->addr_region.dest, 0, sizeof(psend->addr_region.dest));
+    memcpy(psend->addr_region.dest, dstaddr, sizeof(dstaddr));
     papply_region->AFN = 0x05;
     papply_region->Fn = 0x03;
-
-    if (papply_region->unit_len > 2)
-    {
-        protocol_gw1376_2_data_set_data_type(
-            pdata, GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA);
-        return 0;
-    }
-
-    return -1;
+    memcpy(papply_region->unit_buf, psend->ptask_data->buf, psend->ptask_data->len);
+    papply_region->unit_len = psend->ptask_data->len;
+    return 0;
 }
 
 int protocol_gw1376_AFN05_Fn03_up(PROTOCOL_GW1376_2_DATA *pdata)
@@ -582,7 +574,7 @@ int protocol_gw1376_AFN10_Fn02_down(PROTOCOL_GW1376_2_DATA *pdata)
     PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
     GW13762_TASK_DATA *ptask_data = psend->ptask_data;
     PROTOCOL_GW1376_2_APPLY_REGION regin;
-
+    protocol_gw1376_2_data_set_send_comm_module_flag(pdata, GW1376_2_CCO);
     if (ptask_data != NULL && ptask_data->type == GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO)
     {
         regin.AFN = 0x10;
@@ -1026,7 +1018,7 @@ int protocol_gw1376_AFNF1_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
     // dzlog_info("proType : [%d] bufLen : [%d] ", concurrentInfo.proType, bufLen);
     memcpy(concurrentInfo.buffer, papply_region->unit_buf + 3, bufLen);
     memcpy(concurrentInfo.addr, precv->addr_region.src, sizeof(concurrentInfo.addr));
-    //hdzlog_info(concurrentInfo.buffer, bufLen);
+    // hdzlog_info(concurrentInfo.buffer, bufLen);
     RES_INFO resInfo;
     resInfo.isReport = true;
     resInfo.index = precv->recvIndex;

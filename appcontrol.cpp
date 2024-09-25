@@ -97,7 +97,7 @@ void AppControl::start()
     // mqtt消息返回线程
     std::thread mqttRecvThread(&AppControl::mqttRecvThreadFunc, this);
     mqttRecvThread.detach();
-    usleep(50 * 1000);
+    usleep(500 * 1000);
     zlog_info(m_logc, "main thread start!");
     m_pDataControl->dataInit();
 
@@ -120,7 +120,7 @@ void AppControl::serialSendThreadFunc()
     {
         len = 0;
         memset(buf, 0, PROTOCOL_BUF_LEN);
-        usleep(20 * 1000);
+        usleep(100 * 1000);
 
         if (!m_hplcPort->devNodeExist())
         {
@@ -161,7 +161,6 @@ void AppControl::serialSendThreadFunc()
 
             pdata->type = type;
             // 设置信道
-
             protocol_gw1376_2_data_set_send_channel(pdata, m_channel);
             m_channel++;
             if (m_channel > GW1376_2_CHANNEL15)
@@ -180,7 +179,7 @@ void AppControl::serialSendThreadFunc()
                 zlog_print(m_logc, msg, buf, len);
                 memcpy(&pdata->recv.task_data, ptdata, sizeof(GW13762_TASK_DATA));
                 gw13762_task_remove(&pdata->task, ptdata->index);
-                if (writeNum > 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+                if (writeNum > 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING || ptdata->type == GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA)
                 {
                     AFN00_INFO afnInfo = {0};
                     afnInfo.AFN = 0x01;
@@ -194,7 +193,7 @@ void AppControl::serialSendThreadFunc()
                     resInfo.gw13762DataType = pdata->type;
                     ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
                 }
-                else if (writeNum <= 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+                else if (writeNum <= 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING || ptdata->type == GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA)
                 {
                     AFN00_INFO afnInfo = {0};
                     afnInfo.AFN = 0x00;
@@ -241,8 +240,6 @@ void AppControl::serialRecvThreadFunc()
         send.topic = "uart";
         send.size = size;
         send.message = std::string(recvBuf, send.size);
-        m_uartQueue->push(send);
-
         dealMessage(&send);
     }
 }
@@ -307,9 +304,10 @@ void AppControl::parsingMqttMessage(int type, char *topic, char *message)
 
 void AppControl::dealMessage(DATAMESSAGE *message)
 {
-    if (message->src == UART_MSG)
-    { // 串口消息处理
-        protocol_gw1376_2_process_buf((char *)message->message.c_str(), message->size, get_pdata());
+    if (message->src == UART_MSG) // 串口消息处理
+    {
+        m_pDataControl->gw13762ProcessBuf(message->message, message->size);
+        // protocol_gw1376_2_process_buf((char *)message->message.c_str(), message->size, get_pdata());
     }
     else if (message->src == MQTT_MSG) // mqtt消息处理
     {
