@@ -270,7 +270,7 @@ ssize_t SerialPort::receiveData(char *buf, int bufSize)
                 // 处理接收帧超时句柄
                 FD_ZERO(&byte_fd);
                 FD_SET(fd, &byte_fd);
-                int once_max_bytes = 30;
+                int once_max_bytes = 32;
                 unsigned long byte_wait_time =
                     (1000 * (once_max_bytes + 3) * 11 * 1000) / baudRate;
                 timev_byte.tv_sec = byte_wait_time / 1000000;

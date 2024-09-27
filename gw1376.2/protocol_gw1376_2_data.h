@@ -167,9 +167,9 @@ typedef enum _PROTOCOL_GW1376_2_DATA_TYPE
 // 并发抄表响应信息
 typedef struct
 {
-    char addr[6];      // 地址
-    int proType;       // 协议类型
-    int bufLen;        // 报文长度
+    char addr[6];                                  // 地址
+    int proType;                                   // 协议类型
+    int bufLen;                                    // 报文长度
     char buffer[PROTOCOL_GW1376_2_APPLY_DATA_LEN]; // 报文
 } CONCURRENT_INFO;
 
@@ -190,6 +190,15 @@ typedef struct
     int validNum; // 响应的从节点数量
     FILE_INFO *fileInfos;
 } ACQ_FILES_INFO;
+
+// 上报从节点信息
+typedef struct
+{
+    int staDevType;    // 从节点设备类型
+    int proType;       // 通讯协议类型
+    char buffer[2048]; // 报文内容
+    int bufferLen;     // 报文长度
+} AUTOUP_STA_EVENT_INFO;
 
 // 链表中数据
 typedef struct

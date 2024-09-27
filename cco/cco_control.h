@@ -122,6 +122,7 @@ private:
     std::map<int, RES_TOKEN_INFO> m_mqttResMap; // 用于mqtt返回 第一个是1376.2下发的token  第二个是返回的mqtt的token和restopic结构体
     zlog_category_t *m_logc;                    // zlog 指針
     std::map<std::string, int> m_ccoTopicInfo;
+    std::map<int, std::string> m_noConcurrentMap;          // 用于并发采集回并非并发采集消息时  int 对应发送1376.2token string 对应地址
 
     MqttControl *m_mqttControl; // MQTT接口类指针
     MQTT_INFO *m_mInfo;         // MQTT 配置信息，配置文件中获取

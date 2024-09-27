@@ -458,10 +458,10 @@ int protocol_gw1376_AFN06_Fn05_down(PROTOCOL_GW1376_2_DATA *pdata)
 
 int protocol_gw1376_AFN06_Fn05_up(PROTOCOL_GW1376_2_DATA *pdata)
 {
-    int rtn;
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+
     PROTOCOL_GW1376_2_APPLY_REGION *papply_region =
         protocol_gw1376_2_recv_apply_region_get(pdata);
-
     if (papply_region->AFN != 06 || papply_region->Fn != 05)
     {
         dzlog_notice("%s AFN=%d Fn=%d error", __FUNCTION__, papply_region->AFN,
@@ -483,55 +483,27 @@ int protocol_gw1376_AFN06_Fn05_up(PROTOCOL_GW1376_2_DATA *pdata)
         return -1;
     }
 
-    /* rtn = protocol_gw1376_2_sta_process_protocol_frame( */
-    /*     papply_region->unit_buf, papply_region->unit_len, pdata); */
-    switch (papply_region->unit_buf[1])
-    {
-    case 2:
-    { /* 645 2007 */
-        GW13762_TASK_DATA data;
-        memset(&data, 0, sizeof(data));
-        data.ptype = 1; // PROTOCOL_DLT645;  修改
-        data.type = GW1376_2_DATA_TYPE_AUTOUP;
-        data.ismanu_index = true;
-        data.index = pdata->buf_count;
-        data.len = papply_region->unit_buf[2];
-        memcpy(data.buf, &papply_region->unit_buf[3], data.len);
-        GW13762_TASK *ptask = &pdata->task;
-        gw13762_task_push(ptask, &data);
-    }
-    break;
-    case 4:
-    {
-        /* int num = papply_region->unit_buf[2] / 7; */
-        int num = (papply_region->unit_buf[2] - 1) / 6;
-        int i;
-        u08_t state = papply_region->unit_buf[3];
-        for (i = 0; i < num; i++)
-        {
-            int start = i * 6;
-            char addr[13];
-            btos((const char *)(papply_region->unit_buf + 4 + start), addr, 6);
-            // DEV_DATA *pdev_data = dev_data_get_by_staaddr(addr);
+    GW13762_TASK *ptask = &pdata->task;
+    GW13762_TASK_DATA data;
+    memset(&data, 0, sizeof(GW13762_TASK_DATA));
+    data.type = GW1376_2_DATA_TYPE_AUTOUP;
+    data.ismanu_index = true;
+    data.index = precv->recvIndex;
+    gw13762_task_push(ptask, &data);
 
-            GW13762_TASK_DATA data;
-            memset(&data, 0, sizeof(data));
-            data.ptype = 1; // PROTOCOL_DLT645;  修改
-            data.type = GW1376_2_DATA_TYPE_AUTOUP;
-            data.ismanu_index = true;
-            data.index = pdata->buf_count;
-            data.len = 7;
-            data.buf[0] = state;
-            memcpy(&data.buf[1], &papply_region->unit_buf[4 + start], 6);
-            GW13762_TASK *ptask = &pdata->task;
-            gw13762_task_push(ptask, &data);
-        }
-    }
-    break;
-    default:
-        break;
-    }
+    AUTOUP_STA_EVENT_INFO staEventInfo;
+    memset(&staEventInfo, 0, sizeof(AUTOUP_STA_EVENT_INFO));
+    staEventInfo.staDevType = papply_region->unit_buf[0]; // 从节点设备类型
+    staEventInfo.proType = papply_region->unit_buf[1];    // 协议类型
+    staEventInfo.bufferLen = papply_region->unit_buf[2];  // 报文长度
+    memcpy(staEventInfo.buffer, &papply_region->unit_buf[3], staEventInfo.bufferLen);
 
+    RES_INFO resInfo;
+    resInfo.index = -1;
+    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_AUTOUP;
+    resInfo.info = (void *)&staEventInfo;
+    resInfo.infoSize = sizeof(AUTOUP_STA_EVENT_INFO);
+    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
     return 0;
 }
 

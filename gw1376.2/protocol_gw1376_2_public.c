@@ -419,7 +419,7 @@ int protocol_gw1376_unpack_user_info_region(PROTOCOL_GW1376_2_DATA *pdata)
     else
     {
         pdata->buf_count = buf_count;
-        dzlog_notice("%s error data buf_count=%d auto up",
+        dzlog_notice("%s data buf_count=%d auto up",
                      __FUNCTION__, pdata->buf_count);
     }
 

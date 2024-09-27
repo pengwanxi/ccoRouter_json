@@ -634,7 +634,6 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         auto conIt = m_concurrentRes.find(acqAddr->valuestring);
         if (conIt != m_concurrentRes.end())
         {
-
             cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
             if (!cJSON_IsNumber(token))
             {
@@ -660,9 +659,7 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
             cJSON_Delete(root);
             return -1;
         }
-
         m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
-
         int index = 0;
         char sendData[1024] = {0};
         GW13762_TASK_DATA data;
@@ -690,6 +687,10 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         if (gw13762Index < 0)
         {
             zlog_error(m_logc, "gw13762_task_push error!");
+        }
+        else
+        {
+            //m_noConcurrentMap.emplace(gw13762Index, acqAddr->valuestring);
         }
     }
     else
@@ -953,10 +954,24 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
 
         hexArrayToString(concurrentInfo->buffer, concurrentInfo->bufLen, str);
         std::string encodeBuf = encode_base64((unsigned char *)str, concurrentInfo->bufLen * 2);
-        zlog_info(m_logc, "encodeBuf : [%s]", str);
         cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
         free(str);
         m_concurrentRes.erase(std::string(strAddr));
+        //m_noConcurrentMap.erase(resInfo->index);
+    }
+    else if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_AUTOUP)
+    {
+        topic = "ccoRouter/Broadcast/JSON/report/notification/event";
+        AUTOUP_STA_EVENT_INFO *staEventInfo = (AUTOUP_STA_EVENT_INFO *)resInfo->info;
+        addPubilcObject(root);
+        cJSON_AddItemToObject(root, "devType", cJSON_CreateNumber(staEventInfo->staDevType));
+        cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(staEventInfo->proType));
+
+        char *str = (char *)malloc((staEventInfo->bufferLen * 2 + 1) * sizeof(char));
+        hexArrayToString(staEventInfo->buffer, staEventInfo->bufferLen, str);
+        std::string encodeBuf = encode_base64((unsigned char *)str, staEventInfo->bufferLen * 2);
+        cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
+        free(str);
     }
     else
     {
@@ -995,7 +1010,21 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = sendCommonResponse(root, resInfo->info);
                 break;
             case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
-                res = sendCommonResponse(root, resInfo->info);
+                // res = sendCommonResponse(root, resInfo->info);
+                {
+                    /*
+                    auto it = m_noConcurrentMap.find(resInfo->index);
+                    if (it != m_noConcurrentMap.end())
+                    {
+
+                        m_concurrentRes.erase(std::string(it->second));
+                        dzlog_info("m_concurrentRes 擦除地址 [%s]", it->second.c_str());
+                    }
+                    m_noConcurrentMap.erase(resInfo->index);
+                    */
+
+                    res = sendCommonResponse(root, resInfo->info);
+                }
                 break;
             case GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP:
                 res = sendCommonResponse(root, resInfo->info);
@@ -1007,10 +1036,10 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = -1;
                 break;
             }
-            if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
-            {
-                m_mqttResMap.erase(resInfo->index);
-            }
+            // if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+            //{
+            m_mqttResMap.erase(resInfo->index);
+            //}
         }
         else
         {

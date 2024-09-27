@@ -220,7 +220,7 @@ void AppControl::serialRecvThreadFunc()
 {
     zlog_info(m_logc, "serialRecvThreadFunc start!");
 
-    char recvBuf[1024];
+    char recvBuf[2048];
     while (true)
     {
         usleep(20 * 1000);

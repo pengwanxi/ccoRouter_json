@@ -143,20 +143,8 @@ static int protocol_gw1376_2_get_data(char *buf, int *len,
 
     case GW1376_2_DATA_TYPE_AUTOUP:
     {
-
-        printf("autoup\n");
-        /*
-GW13762_TASK_DATA *ptdata = pdata->send.ptask_data;
-if (ptdata->protocol_send) {
-    auto_flag = 1;
-    if (ptdata->protocol_recv(ptdata->buf, ptdata->len, pdata->pcomm)) {
-        dzlog_debug("%s 主动处理645报文", __FUNCTION__);
-    }
-    dzlog_debug("%s 主动上送回复", __FUNCTION__);
-    rtn = protocol_gw1376_AFN06_Fn05_down(pdata);
-}
-else {
-}*/
+        dzlog_debug("%s 主动上报", __FUNCTION__); // 确认报文
+        rtn = protocol_gw1376_AFN06_Fn05_down(pdata);
     }
     break;
     default:
@@ -195,14 +183,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         return -1;
     }
     pdata->unpack_frame_error_count = 0;
-    dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
-    int res13762Type = get13762Type_func(precv->recvIndex);
-    dzlog_notice(" gw13762Type : [ %d ]", res13762Type);
-    if (res13762Type < 0)
-    {
-        dzlog_info("get13762Type_func not found for token!");
-        return -1;
-    }
+
     prm = protocol_gw1376_2_data_set_recv_prm(pdata);
     /* 询问回复的报文 */
     if (!prm)
@@ -212,6 +193,8 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         case 0xF1:
         {
             protocol_gw1376_AFNF1_Fn01_up(pdata);
+            protocol_gw1376_2_data_set_data_type(pdata, GW1376_2_DATA_TYPE_NULL);
+            return 0;
         }
         break;
         default:
@@ -219,6 +202,15 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         }
 
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
+
+        dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
+        int res13762Type = get13762Type_func(precv->recvIndex);
+        dzlog_notice(" gw13762Type : [ %d ]", res13762Type);
+        if (res13762Type < 0 || res13762Type > GW1376_2_DATA_TYPE_SIZE)
+        {
+            dzlog_info("get13762Type_func not found for token!");
+            return -1;
+        }
         switch (res13762Type) // ptdata->type
         {
         case GW1376_2_DATA_TYPE_HARD_INIT:
@@ -334,6 +326,12 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         {
             dzlog_debug("%s 查询所有网络拓扑信息", __FUNCTION__);
             rtn = protocol_gw1376_AFN10_Fn21_up_all(pdata);
+        }
+        break;
+        case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
+        {
+            dzlog_debug("%s 并发抄表其他回复", __FUNCTION__);
+            rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
         default:
