@@ -15,6 +15,7 @@
 typedef int (*get13762Type_t)(int);
 
 void set_gettype_func(get13762Type_t func);
+void set_checkConcurrentIndex_func(get13762Type_t func);
 
 /**
  *  \brief 获取发送报文

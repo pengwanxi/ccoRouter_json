@@ -3,6 +3,7 @@
 #include "protocol_gw1376_2_data.h"
 #include "protocol_gw1376_2.h"
 #include "common_utils.h"
+#include "zlog.h"
 
 #include <array>
 #include <string>
@@ -11,6 +12,8 @@
 #include <vector>
 #include <sys/utsname.h>
 #include <thread>
+std::map<int, std::string> *CcoControl::m_noConcurrentMap_tmp = NULL;
+std::map<std::string, std::string> *CcoControl::m_concurrentRes_tmp = NULL;
 
 std::map<int, RES_TOKEN_INFO> *CcoControl::m_mqttResMap_tmp = NULL;
 CcoControl::CcoControl()
@@ -21,7 +24,10 @@ CcoControl::CcoControl()
     m_token = 1;
     paraInit();
     m_mqttResMap_tmp = &m_mqttResMap;
+    m_noConcurrentMap_tmp = &m_noConcurrentMap;
+    m_concurrentRes_tmp = &m_concurrentRes;
     set_gettype_func(get13762TypeForToken);
+    set_checkConcurrentIndex_func(checkConcurrentForIndex);
 }
 
 CcoControl::~CcoControl()
@@ -32,6 +38,25 @@ void CcoControl::setMqttControl(MqttControl *mqttControl, MQTT_INFO *mInfo)
 {
     m_mqttControl = mqttControl;
     m_mInfo = mInfo;
+}
+
+int CcoControl::checkConcurrentForIndex(int token)
+{
+    std::map<int, std::string>::iterator noConcurrent = m_noConcurrentMap_tmp->find(token);
+    // zlog_info(m_logc, "m_mqttResMap.size() : [ %d ]  m_mqttResMap[ %d ] resTopic : [%s]", m_mqttResMap.size(), resInfo->index, mqttRes->second.resTopic.c_str());
+    // dzlog_info("resInfo->gw13762DataType : [%d]", resInfo->gw13762DataType);
+    if (noConcurrent != m_noConcurrentMap_tmp->end())
+    {
+        std::string addr = noConcurrent->second;
+        std::map<std::string, std::string>::iterator concurrentRes = m_concurrentRes_tmp->find(addr);
+        if (concurrentRes != m_concurrentRes_tmp->end())
+        {
+            m_concurrentRes_tmp->erase(addr);
+            // dzlog_info("m_concurrentRes 并发采集地址擦除 [%s]", addr);
+        }
+        m_noConcurrentMap_tmp->erase(token);
+    }
+    return 0;
 }
 
 int CcoControl::get13762TypeForToken(int token)
@@ -659,7 +684,6 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
             cJSON_Delete(root);
             return -1;
         }
-        m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
         int index = 0;
         char sendData[1024] = {0};
         GW13762_TASK_DATA data;
@@ -690,7 +714,9 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         }
         else
         {
-            //m_noConcurrentMap.emplace(gw13762Index, acqAddr->valuestring);
+            // std::string str = std::string(acqAddr->valuestring) + "_" + std::to_string(gw13762Index);
+            m_concurrentRes.emplace(str, cTopic);
+            m_noConcurrentMap.emplace(gw13762Index, str);
         }
     }
     else
@@ -956,8 +982,10 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         std::string encodeBuf = encode_base64((unsigned char *)str, concurrentInfo->bufLen * 2);
         cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
         free(str);
+
         m_concurrentRes.erase(std::string(strAddr));
-        //m_noConcurrentMap.erase(resInfo->index);
+        dzlog_info("m_concurrentRes 并发采集地址擦除 [%s]", strAddr);
+        // m_noConcurrentMap.erase(resInfo->index);
     }
     else if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_AUTOUP)
     {
@@ -1010,22 +1038,10 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = sendCommonResponse(root, resInfo->info);
                 break;
             case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
-                // res = sendCommonResponse(root, resInfo->info);
-                {
-                    /*
-                    auto it = m_noConcurrentMap.find(resInfo->index);
-                    if (it != m_noConcurrentMap.end())
-                    {
-
-                        m_concurrentRes.erase(std::string(it->second));
-                        dzlog_info("m_concurrentRes 擦除地址 [%s]", it->second.c_str());
-                    }
-                    m_noConcurrentMap.erase(resInfo->index);
-                    */
-
-                    res = sendCommonResponse(root, resInfo->info);
-                }
-                break;
+            {
+                res = sendCommonResponse(root, resInfo->info);
+            }
+            break;
             case GW1376_2_DATA_TYPE_WRITE_SUBNODE_AUTO_UP:
                 res = sendCommonResponse(root, resInfo->info);
                 break;
@@ -1135,7 +1151,10 @@ int CcoControl::sendGetAcqFilesInfo(cJSON *root, void *info)
     }
 
     cJSON_AddItemToObject(root, "body", body);
-    free(acqFilesInfo->fileInfos);
+    if (acqFilesInfo->fileInfos != NULL)
+    {
+        free(acqFilesInfo->fileInfos);
+    }
 
     for (const auto &pair : m_fileInfosMap)
     {

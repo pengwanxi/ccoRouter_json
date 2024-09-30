@@ -6,9 +6,16 @@
 
 get13762Type_t get13762Type_func;
 
+get13762Type_t checkConcurrentIndexFunc;
+
 void set_gettype_func(get13762Type_t func)
 {
     get13762Type_func = func;
+}
+
+void set_checkConcurrentIndex_func(get13762Type_t func)
+{
+    checkConcurrentIndexFunc = func;
 }
 
 /**
@@ -197,12 +204,16 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
             return 0;
         }
         break;
+        case 0x00:
+        {
+            checkConcurrentIndexFunc(precv->recvIndex);
+        }
+        break;
         default:
             break;
         }
 
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
-
         dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
         int res13762Type = get13762Type_func(precv->recvIndex);
         dzlog_notice(" gw13762Type : [ %d ]", res13762Type);

@@ -577,6 +577,7 @@ int protocol_gw1376_AFN10_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata)
     ACQ_FILES_INFO acqFilesInfo;
     acqFilesInfo.totalNum = total;
     acqFilesInfo.validNum = validNum;
+    acqFilesInfo.fileInfos = NULL;
     dzlog_info("total : [%d] validNum : [%d]", total, validNum);
 
     if (validNum != 0)
