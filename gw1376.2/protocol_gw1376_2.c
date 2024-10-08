@@ -342,7 +342,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         case GW1376_2_DATA_TYPE_CONCURRENT_METER_READING:
         {
             dzlog_debug("%s 并发抄表其他回复", __FUNCTION__);
-            rtn = protocol_gw1376_AFN00_up(pdata);
+            // rtn = protocol_gw1376_AFN00_up(pdata);
         }
         break;
         default:
@@ -437,23 +437,23 @@ int protocol_gw1376_2_process_buf(char *buf, int len, void *p)
     int pos = 0;
     int error = 0;
 
-    while (pos < len && pos >= 0)
+    // while (pos < len && pos >= 0)
+    //{
+    int rtn;
+    /* 找到有效报文 */
+    pos = protocol_gw1376_2_find_valid_buf(buf, len, pprotocol_data, pos);
+    if (pos < 0)
     {
-        int rtn;
-        /* 找到有效报文 */
-        pos = protocol_gw1376_2_find_valid_buf(buf, len, pprotocol_data, pos);
-        if (pos < 0)
-        {
-            return -1;
-        }
-        rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len, pprotocol_data);
-        if (rtn < 0)
-        {
-            error = -1;
-        }
-
-        pos += precv->value_len;
+        return -1;
     }
+    rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len, pprotocol_data);
+    if (rtn < 0)
+    {
+        error = -1;
+    }
+
+    pos += precv->value_len;
+    // }
 
     return error;
 }

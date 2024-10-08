@@ -43,6 +43,13 @@ typedef struct
 
 typedef struct
 {
+    bool isTiming;            // 是否开始计时
+    struct timeval startTime; // 计时开始时间
+
+} DEL_CONCURRENT_INFO;
+
+typedef struct
+{
     uint8 MqttInitial;
     uint8 DatabaseInitial;
 } TEM_STATUS;

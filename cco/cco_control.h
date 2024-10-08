@@ -10,6 +10,7 @@
 #include "mqtt_control.h"
 #include <map>
 #include <unordered_map>
+#include <sys/time.h>
 
 #define GET_MASTERNODE "ccoRouter/JSON/get/request/masterNode"
 #define SET_MASTERNODE "ccoRouter/JSON/set/request/masterNode"
@@ -133,6 +134,8 @@ private:
 
     std::map<std::string, int> m_fileInfosMap;          // 用于并发采集和透传 string为从节点地址，int为协议类型
     std::map<std::string, std::string> m_concurrentRes; // 并发采集上报，key addr，value topic发完就删
+
+    std::map<std::string, DEL_CONCURRENT_INFO> m_delConResMap; // 用于删除m_concurrentRes 中超时的addr默认五秒，超时后删除
 
     void paraInit();
     int parseGetMasterNode(std::string topic, std::string message); // 解析 查询主节点地址

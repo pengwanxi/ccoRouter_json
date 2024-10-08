@@ -52,7 +52,7 @@ int CcoControl::checkConcurrentForIndex(int token)
         if (concurrentRes != m_concurrentRes_tmp->end())
         {
             m_concurrentRes_tmp->erase(addr);
-            // dzlog_info("m_concurrentRes 并发采集地址擦除 [%s]", addr);
+            // printf("m_concurrentRes 并发采集地址擦除 [%s]", addr);
         }
         m_noConcurrentMap_tmp->erase(token);
     }
@@ -659,6 +659,13 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         auto conIt = m_concurrentRes.find(acqAddr->valuestring);
         if (conIt != m_concurrentRes.end())
         {
+            /**
+            if()
+            struct timeval nowTime;
+            gettimeofday(&nowTime, NULL); // 获取当前时间
+            int timeouts = nowTime.tv_sec - pdev_data->startTime.tv_sec;
+            m_delConResMap.emplace();
+    */
             cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
             if (!cJSON_IsNumber(token))
             {
@@ -715,8 +722,8 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         else
         {
             // std::string str = std::string(acqAddr->valuestring) + "_" + std::to_string(gw13762Index);
-            m_concurrentRes.emplace(str, cTopic);
-            m_noConcurrentMap.emplace(gw13762Index, str);
+            m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
+            m_noConcurrentMap.emplace(gw13762Index, acqAddr->valuestring);
         }
     }
     else
@@ -1052,10 +1059,10 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
                 res = -1;
                 break;
             }
-            // if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
-            //{
-            m_mqttResMap.erase(resInfo->index);
-            //}
+            if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
+            {
+                m_mqttResMap.erase(resInfo->index);
+            }
         }
         else
         {
