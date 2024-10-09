@@ -190,7 +190,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         return -1;
     }
     pdata->unpack_frame_error_count = 0;
-
+    dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
     prm = protocol_gw1376_2_data_set_recv_prm(pdata);
     /* 询问回复的报文 */
     if (!prm)
@@ -214,7 +214,7 @@ static int protocol_gw1376_2_process_data(char *buf, int len,
         }
 
         GW13762_TASK_DATA *ptdata = &pdata->recv.task_data;
-        dzlog_info(" precv->recvIndex : [%d]", precv->recvIndex);
+
         int res13762Type = get13762Type_func(precv->recvIndex);
         dzlog_notice(" gw13762Type : [ %d ]", res13762Type);
         if (res13762Type < 0 || res13762Type > GW1376_2_DATA_TYPE_SIZE)
@@ -437,23 +437,22 @@ int protocol_gw1376_2_process_buf(char *buf, int len, void *p)
     int pos = 0;
     int error = 0;
 
-    // while (pos < len && pos >= 0)
-    //{
-    int rtn;
-    /* 找到有效报文 */
-    pos = protocol_gw1376_2_find_valid_buf(buf, len, pprotocol_data, pos);
-    if (pos < 0)
+    while (pos < len && pos >= 0)
     {
-        return -1;
+        int rtn;
+        /* 找到有效报文 */
+        pos = protocol_gw1376_2_find_valid_buf(buf, len, pprotocol_data, pos);
+        if (pos < 0)
+        {
+            return -1;
+        }
+        rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len, pprotocol_data);
+        if (rtn < 0)
+        {
+            error = -1;
+        }
+        pos += precv->value_len;
     }
-    rtn = protocol_gw1376_2_process_data(buf + pos, precv->value_len, pprotocol_data);
-    if (rtn < 0)
-    {
-        error = -1;
-    }
-
-    pos += precv->value_len;
-    // }
 
     return error;
 }

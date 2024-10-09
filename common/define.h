@@ -43,10 +43,10 @@ typedef struct
 
 typedef struct
 {
+    std::string resTopic;     // 响应的topic
     bool isTiming;            // 是否开始计时
     struct timeval startTime; // 计时开始时间
-
-} DEL_CONCURRENT_INFO;
+} CONCURRENT_RES_INFO;
 
 typedef struct
 {

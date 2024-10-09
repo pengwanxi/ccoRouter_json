@@ -375,6 +375,8 @@ protocol_gw1376_2_recv_control_data_init(PROTOCOL_GW1376_2_DATA *pdata)
     precv->comm_baud_flag = GW1376_2_BAUD_BIT;
 
     precv->res_data_head = CreateList();
+    pthread_mutex_init(&precv->resHeadLock, NULL); // 初始化互斥锁
+    pthread_cond_init(&precv->resHeadCond, NULL);  // 初始化条件变量
     return 0;
 }
 
@@ -416,4 +418,18 @@ void protocol_gw1376_2_data_exit(void *p)
         free(pprotocol_data);
         pprotocol_data = NULL;
     }
+}
+
+RES_INFO *CreateResInfo()
+{
+    RES_INFO *resInfo = NULL;
+    resInfo = (RES_INFO *)malloc(sizeof(RES_INFO));
+    return resInfo;
+}
+
+CONCURRENT_INFO *CreateConcurrentInfo()
+{
+    CONCURRENT_INFO *resInfo = NULL;
+    resInfo = (CONCURRENT_INFO *)malloc(sizeof(CONCURRENT_INFO));
+    return resInfo;
 }

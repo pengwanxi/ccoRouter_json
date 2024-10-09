@@ -4,6 +4,7 @@
 #include "protocol_gw1376_2_AFN.h"
 #include "gw13762_task.h"
 #include "zlog.h"
+#include "Dlist.h"
 
 unsigned char protocol_gw1376_2_cal_fn(unsigned char DT1, unsigned char DT2)
 {
@@ -149,12 +150,9 @@ int protocol_gw1376_2_pos_valid_buf(char *buf, int len,
 
     while (len - pos > 0)
     {
-
-        // dzlog_info("buf[%d] : [%02x] ", pos, buf[pos]);
         if (buf[pos] == 0x68)
         {
             int tmp_len = MAKEWORD(buf[pos + 1], buf[pos + 2]);
-
             if (tmp_len > (len - pos))
             {
                 pos++;
@@ -166,7 +164,6 @@ int protocol_gw1376_2_pos_valid_buf(char *buf, int len,
                 return pos;
             }
         }
-
         pos++;
     }
 
@@ -221,9 +218,7 @@ int protocol_gw1376_2_find_valid_buf(char *buf, int len,
                                      PROTOCOL_GW1376_2_DATA *pdata, int pos)
 {
     pos = protocol_gw1376_2_pos_valid_buf(buf, len, pdata, pos);
-
     dzlog_info("pos : [ %d ]", pos);
-
     PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
     if (pos < 0 || pos > len)
     {
@@ -231,8 +226,8 @@ int protocol_gw1376_2_find_valid_buf(char *buf, int len,
         return -1;
     }
 
-    // dzlog_debug("%s len=%.3d:", __FUNCTION__, precv->value_len);
-    // log_debug_frame(buf + pos, precv->value_len);
+    dzlog_debug("%s len=%.3d:", __FUNCTION__, precv->value_len);
+    log_debug_frame(buf + pos, precv->value_len);
 
     if (protocol_gw1376_2_check_buf(buf + pos, precv->value_len, pdata) < 0)
     {
@@ -776,4 +771,14 @@ int protocol_gw1376_unpack_frame_data(char *buf, int len,
     }
 
     return precv->frame_len;
+}
+
+int protocol_gw1376_res_ListAddNode(PROTOCOL_GW1376_2_DATA *pdata, void *Info, int infoSize)
+{
+    PROTOCOL_GW1376_2_RECV_DATA *precv = protocol_gw1376_2_recv_data_get(pdata);
+    pthread_mutex_lock(&precv->resHeadLock);
+    ListAddNode(precv->res_data_head, Info, infoSize);
+    pthread_cond_signal(&precv->resHeadCond);
+    pthread_mutex_unlock(&precv->resHeadLock);
+    return 0;
 }

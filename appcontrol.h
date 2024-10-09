@@ -17,7 +17,7 @@
 #define CONFIGPATH "/home/sysadm/pengwx/ccoRouter/conf/"
 
 #define APP_VER_LOCAL 0
-#define APP_VER_MQTT 1  
+#define APP_VER_MQTT 1
 
 /* 信道 */
 typedef enum dealMsgType
@@ -53,6 +53,8 @@ private:
     void serialRecvThreadFunc();     // 接收串口消息线程
 
     void mqttRecvThreadFunc(); // 返回mqtt消息线程
+
+    //void FreeFunc(void *info);
 
 private:
     std::string m_devSn;   // 设备sn

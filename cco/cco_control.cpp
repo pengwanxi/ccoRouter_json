@@ -13,7 +13,7 @@
 #include <sys/utsname.h>
 #include <thread>
 std::map<int, std::string> *CcoControl::m_noConcurrentMap_tmp = NULL;
-std::map<std::string, std::string> *CcoControl::m_concurrentRes_tmp = NULL;
+std::map<std::string, CONCURRENT_RES_INFO> *CcoControl::m_concurrentRes_tmp = NULL;
 
 std::map<int, RES_TOKEN_INFO> *CcoControl::m_mqttResMap_tmp = NULL;
 CcoControl::CcoControl()
@@ -48,8 +48,8 @@ int CcoControl::checkConcurrentForIndex(int token)
     if (noConcurrent != m_noConcurrentMap_tmp->end())
     {
         std::string addr = noConcurrent->second;
-        std::map<std::string, std::string>::iterator concurrentRes = m_concurrentRes_tmp->find(addr);
-        if (concurrentRes != m_concurrentRes_tmp->end())
+        auto it = m_concurrentRes_tmp->find(addr);
+        if (it != m_concurrentRes_tmp->end())
         {
             m_concurrentRes_tmp->erase(addr);
             // printf("m_concurrentRes 并发采集地址擦除 [%s]", addr);
@@ -659,13 +659,23 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         auto conIt = m_concurrentRes.find(acqAddr->valuestring);
         if (conIt != m_concurrentRes.end())
         {
-            /**
-            if()
-            struct timeval nowTime;
-            gettimeofday(&nowTime, NULL); // 获取当前时间
-            int timeouts = nowTime.tv_sec - pdev_data->startTime.tv_sec;
-            m_delConResMap.emplace();
-    */
+            CONCURRENT_RES_INFO *conResInfo = &conIt->second;
+            if (conResInfo->isTiming)
+            {
+                struct timeval nowTime;
+                gettimeofday(&nowTime, NULL); // 获取当前时间
+                int timeouts = nowTime.tv_sec - conResInfo->startTime.tv_sec;
+                if (timeouts >= 5)
+                {
+                    m_concurrentRes.erase(conIt);
+                    dzlog_info("超时 m_concurrentRes 并发采集地址擦除 [%s]", acqAddr->valuestring);
+                }
+            }
+            else
+            {
+                conResInfo->isTiming = true;
+                gettimeofday(&conResInfo->startTime, NULL); // 获取当前时间
+            }
             cJSON *token = cJSON_GetObjectItemCaseSensitive(root, "token");
             if (!cJSON_IsNumber(token))
             {
@@ -722,7 +732,11 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         else
         {
             // std::string str = std::string(acqAddr->valuestring) + "_" + std::to_string(gw13762Index);
-            m_concurrentRes.emplace(acqAddr->valuestring, cTopic);
+            CONCURRENT_RES_INFO conResInfo;
+            conResInfo.isTiming = false;
+            conResInfo.resTopic = std::string(cTopic);
+
+            m_concurrentRes.emplace(acqAddr->valuestring, conResInfo);
             m_noConcurrentMap.emplace(gw13762Index, acqAddr->valuestring);
         }
     }
@@ -963,6 +977,12 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
     std::string topic;
     int res = 0;
     RES_INFO *resInfo = (RES_INFO *)data;
+    if (resInfo == NULL)
+    {
+        dzlog_error("数据项为空!");
+        return -1;
+    }
+    dzlog_info("packSendMqttMsg =====> resInfo-> index:[%d]", resInfo->index);
     cJSON *root = cJSON_CreateObject();
     if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING && resInfo->isReport == true)
     {
@@ -976,9 +996,12 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         {
             zlog_error(m_logc, "m_concurrentRes not found!");
             cJSON_Delete(root);
+            free(concurrentInfo);
+            // free(resInfo);
             return -1;
         }
-        topic = it->second;
+        CONCURRENT_RES_INFO conResInfo = it->second;
+        topic = conResInfo.resTopic;
         addPubilcObject(root);
         cJSON_AddItemToObject(root, "acqAddr", cJSON_CreateString(strAddr));
         cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(concurrentInfo->proType));
@@ -992,6 +1015,8 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
 
         m_concurrentRes.erase(std::string(strAddr));
         dzlog_info("m_concurrentRes 并发采集地址擦除 [%s]", strAddr);
+
+        free(concurrentInfo);
         // m_noConcurrentMap.erase(resInfo->index);
     }
     else if (resInfo->gw13762DataType == GW1376_2_DATA_TYPE_AUTOUP)
@@ -1062,12 +1087,14 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
             if (resInfo->gw13762DataType != GW1376_2_DATA_TYPE_CONCURRENT_METER_READING)
             {
                 m_mqttResMap.erase(resInfo->index);
+                zlog_info(m_logc, "m_mqttResMap 擦除 resInfo->index : [%d]", resInfo->index);
             }
         }
         else
         {
             zlog_error(m_logc, "m_mqttResMap not found!");
             cJSON_Delete(root);
+            // free(resInfo);
             return -1;
         }
     }
@@ -1088,6 +1115,7 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
     }
     cJSON_Delete(root);
     free(payload);
+    // free(resInfo);
     return 0;
 }
 

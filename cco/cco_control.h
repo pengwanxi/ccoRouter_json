@@ -118,7 +118,7 @@ public:
 
     static int checkConcurrentForIndex(int);
     static std::map<int, std::string> *m_noConcurrentMap_tmp;
-    static std::map<std::string, std::string> *m_concurrentRes_tmp;
+    static std::map<std::string, CONCURRENT_RES_INFO> *m_concurrentRes_tmp;
 
 private:
     int m_token;
@@ -132,10 +132,8 @@ private:
     MqttControl *m_mqttControl; // MQTT接口类指针
     MQTT_INFO *m_mInfo;         // MQTT 配置信息，配置文件中获取
 
-    std::map<std::string, int> m_fileInfosMap;          // 用于并发采集和透传 string为从节点地址，int为协议类型
-    std::map<std::string, std::string> m_concurrentRes; // 并发采集上报，key addr，value topic发完就删
-
-    std::map<std::string, DEL_CONCURRENT_INFO> m_delConResMap; // 用于删除m_concurrentRes 中超时的addr默认五秒，超时后删除
+    std::map<std::string, int> m_fileInfosMap;                  // 用于并发采集和透传 string为从节点地址，int为协议类型
+    std::map<std::string, CONCURRENT_RES_INFO> m_concurrentRes; // 并发采集上报，key addr，value topic发完就删
 
     void paraInit();
     int parseGetMasterNode(std::string topic, std::string message); // 解析 查询主节点地址

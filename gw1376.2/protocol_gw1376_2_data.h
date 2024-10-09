@@ -5,8 +5,9 @@
 #ifndef _PROTOCOL_GW1376_2_DATA_H_
 #define _PROTOCOL_GW1376_2_DATA_H_
 #include "gw13762_task.h"
-
 #include "Dlist.h"
+
+#include <pthread.h>
 
 #define PROTOCOL_GW1376_2_BUF_LEN 4096
 #define PROTOCOL_GW1376_2_APPLY_DATA_LEN 3072
@@ -315,8 +316,10 @@ typedef struct _PROTOCOL_GW1376_2_RECV_CONTROL_DATA
     int value_len;
 
     int apply_data_len;
-    int recvIndex;             // 存储返回的token
-    ListHead_t *res_data_head; // 用于接收后的数据返回
+    int recvIndex;               // 存储返回的token
+    ListHead_t *res_data_head;   // 用于接收后的数据返回
+    pthread_mutex_t resHeadLock; // 增加互斥锁和条件变量
+    pthread_cond_t resHeadCond;
 
     GW13762_TASK_DATA task_data;
 } PROTOCOL_GW1376_2_RECV_DATA;
@@ -537,5 +540,8 @@ void protocol_gw1376_2_data_set_state(PROTOCOL_GW1376_2_DATA *pdata, int type);
  *  \return void
  */
 int protocol_gw1376_2_data_get_state(PROTOCOL_GW1376_2_DATA *pdata);
+
+RES_INFO *CreateResInfo();
+CONCURRENT_INFO *CreateConcurrentInfo();
 
 #endif /* _PROTOCOL_GW1376_2_DATA_H_ */

@@ -7,7 +7,6 @@
 
 #include "protocol_gw1376_2_data.h"
 
-
 /**
  *  \brief 根据消息获取数据类型
  *  \param pdata 协议指针
@@ -87,5 +86,6 @@ int protocol_gw1376_pack_frame_data(char *buf, int *len,
 int protocol_gw1376_unpack_frame_data(char *buf, int len,
                                       PROTOCOL_GW1376_2_DATA *pdata);
 
+int protocol_gw1376_res_ListAddNode(PROTOCOL_GW1376_2_DATA *pdata, void *Info, int infoSize);
 
 #endif /* _PROTOCOL_GW1376_2_PUBLIC_H_ */

@@ -3,6 +3,7 @@
 #include "globalbase.h"
 #include "protocol_gw1376_2_data.h"
 #include "protocol_gw1376_2.h"
+#include "protocol_gw1376_2_public.h"
 #include "Dlist.h"
 #include <thread>
 #include <algorithm>
@@ -15,8 +16,8 @@ AppControl::AppControl()
 {
     m_logc = zlog_get_category("appcontrol");
 
-    m_queue = new QueueBuffer(50);
-    m_uartQueue = new QueueBuffer(50); // 串口接收队列
+    m_queue = new QueueBuffer(100);
+    m_uartQueue = new QueueBuffer(100); // 串口接收队列
 
     m_pApp = this;
 
@@ -120,7 +121,7 @@ void AppControl::serialSendThreadFunc()
     {
         len = 0;
         memset(buf, 0, PROTOCOL_BUF_LEN);
-        usleep(100 * 1000);
+        usleep(200 * 1000);
 
         if (!m_hplcPort->devNodeExist())
         {
@@ -185,13 +186,18 @@ void AppControl::serialSendThreadFunc()
                     afnInfo.AFN = 0x01;
                     afnInfo.Fn = 0x01;
                     afnInfo.result = 0;
-                    RES_INFO resInfo;
-                    resInfo.index = pdata->send.ptask_data->index;
-                    resInfo.isReport = false;
-                    resInfo.info = (void *)&afnInfo;
-                    resInfo.infoSize = sizeof(AFN00_INFO);
-                    resInfo.gw13762DataType = pdata->type;
-                    ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+                    RES_INFO *resInfo = CreateResInfo();
+                    if (resInfo == NULL)
+                    {
+                        dzlog_error("malloc failed!");
+                        continue;
+                    }
+                    resInfo->index = pdata->send.ptask_data->index;
+                    resInfo->isReport = false;
+                    resInfo->info = (void *)&afnInfo;
+                    resInfo->infoSize = sizeof(AFN00_INFO);
+                    resInfo->gw13762DataType = pdata->type;
+                    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
                 }
                 else if (writeNum <= 0 && ptdata->type == GW1376_2_DATA_TYPE_CONCURRENT_METER_READING || ptdata->type == GW1376_2_DATA_TYPE_TRANS_BROADCAST_DATA)
                 {
@@ -199,13 +205,18 @@ void AppControl::serialSendThreadFunc()
                     afnInfo.AFN = 0x00;
                     afnInfo.Fn = 0x02;
                     afnInfo.result = 0;
-                    RES_INFO resInfo;
-                    resInfo.index = pdata->send.ptask_data->index;
-                    resInfo.isReport = false;
-                    resInfo.info = (void *)&afnInfo;
-                    resInfo.infoSize = sizeof(AFN00_INFO);
-                    resInfo.gw13762DataType = pdata->type;
-                    ListAddNode(pdata->recv.res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+                    RES_INFO *resInfo = CreateResInfo();
+                    if (resInfo == NULL)
+                    {
+                        dzlog_error("malloc failed!");
+                        continue;
+                    }
+                    resInfo->index = pdata->send.ptask_data->index;
+                    resInfo->isReport = false;
+                    resInfo->info = (void *)&afnInfo;
+                    resInfo->infoSize = sizeof(AFN00_INFO);
+                    resInfo->gw13762DataType = pdata->type;
+                    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
                 }
 
                 // hzlog_info(m_logc, buf, len);
@@ -223,7 +234,7 @@ void AppControl::serialRecvThreadFunc()
     char recvBuf[2048];
     while (true)
     {
-        usleep(20 * 1000);
+        usleep(50 * 1000);
         memset(recvBuf, 0, sizeof(recvBuf));
         int size = m_hplcPort->receiveData(recvBuf, sizeof(recvBuf));
         // dzlog_info("read size : [%d] ", size);
@@ -253,7 +264,10 @@ void AppControl::dealSerialRecvThreadFunc()
         dealMessage(&message);
     }
 }
-
+void FreeFunc(void *info)
+{
+    free(info);
+}
 // 返回mqtt消息线程
 void AppControl::mqttRecvThreadFunc()
 {
@@ -267,13 +281,24 @@ void AppControl::mqttRecvThreadFunc()
     {
         usleep(20 * 1000);
         listNode = NULL;
+        pthread_mutex_lock(&precv->resHeadLock);
         listNode = ListGetNode(resHead);
+        pthread_mutex_unlock(&precv->resHeadLock);
+        while (listNode == NULL)
+        {
+            pthread_mutex_lock(&precv->resHeadLock);
+            zlog_info(m_logc, "线程等待");
+            pthread_cond_wait(&precv->resHeadCond, &precv->resHeadLock);
+            listNode = ListGetNode(resHead);
+            pthread_mutex_unlock(&precv->resHeadLock);
+        }
         if (listNode == NULL)
         {
             continue;
         }
         m_pDataControl->packSendMqttMessage(listNode->data, listNode->dataSize);
-        DestroyListNodeData(listNode, NULL);
+
+        DestroyListNodeData(listNode, FreeFunc);
     }
 }
 

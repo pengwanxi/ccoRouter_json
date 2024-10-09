@@ -78,13 +78,18 @@ int protocol_gw1376_AFN00_up(PROTOCOL_GW1376_2_DATA *pdata)
     dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
     // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
     //   hdzlog_info(precv->apply_region.unit_buf, 1);
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
     // resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
-    resInfo.info = (void *)&afnInfo;
-    resInfo.infoSize = sizeof(AFN00_INFO);
-    resInfo.gw13762DataType = pdata->type;
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    resInfo->info = (void *)&afnInfo;
+    resInfo->infoSize = sizeof(AFN00_INFO);
+    resInfo->gw13762DataType = pdata->type;
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -123,16 +128,20 @@ int protocol_gw1376_AFN01_up(PROTOCOL_GW1376_2_DATA *pdata)
     dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
     // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
     //   hdzlog_info(precv->apply_region.unit_buf, 1);
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
     // resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
-    resInfo.info = (void *)&afnInfo;
-    resInfo.infoSize = sizeof(AFN00_INFO);
-    resInfo.gw13762DataType = pdata->type;
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    resInfo->info = (void *)&afnInfo;
+    resInfo->infoSize = sizeof(AFN00_INFO);
+    resInfo->gw13762DataType = pdata->type;
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
-
 int protocol_gw1376_AFN02_Fn01_down(PROTOCOL_GW1376_2_DATA *pdata)
 {
     PROTOCOL_GW1376_2_SEND_DATA *psend = protocol_gw1376_2_send_data_get(pdata);
@@ -211,18 +220,23 @@ int protocol_gw1376_AFN03_Fn04_up(PROTOCOL_GW1376_2_DATA *pdata)
     }
     memset(pdata->send.addr_region.src, 0, 6);
     memcpy(pdata->send.addr_region.src, precv->apply_region.unit_buf, 6); // 存主节点地址
-    RES_INFO resInfo;
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
     char addr[6];
     // 地址转换  修改
     reverseHexArray(addr, precv->apply_region.unit_buf, 6);
 
     // hdzlog_info(precv->apply_region.unit_buf, 6);
     // hdzlog_info(addr, 6);
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR;
-    resInfo.info = (void *)addr;
-    resInfo.infoSize = sizeof(addr);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_READ_MAIN_NODE_ADDR;
+    resInfo->info = (void *)addr;
+    resInfo->infoSize = sizeof(addr);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -322,12 +336,17 @@ int protocol_gw1376_AFN05_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
     {
         afnInfo.result = (int)precv->apply_region.unit_buf;
     }
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR;
-    resInfo.info = (void *)&afnInfo;
-    resInfo.infoSize = sizeof(AFN00_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_WRITE_MAIN_NODE_ADDR;
+    resInfo->info = (void *)&afnInfo;
+    resInfo->infoSize = sizeof(AFN00_INFO);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -498,12 +517,17 @@ int protocol_gw1376_AFN06_Fn05_up(PROTOCOL_GW1376_2_DATA *pdata)
     staEventInfo.bufferLen = papply_region->unit_buf[2];  // 报文长度
     memcpy(staEventInfo.buffer, &papply_region->unit_buf[3], staEventInfo.bufferLen);
 
-    RES_INFO resInfo;
-    resInfo.index = -1;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_AUTOUP;
-    resInfo.info = (void *)&staEventInfo;
-    resInfo.infoSize = sizeof(AUTOUP_STA_EVENT_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = -1;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_AUTOUP;
+    resInfo->info = (void *)&staEventInfo;
+    resInfo->infoSize = sizeof(AUTOUP_STA_EVENT_INFO);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -531,12 +555,17 @@ int protocol_gw1376_AFN10_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
 
     int number = MAKEWORD(papply_region->unit_buf[0], papply_region->unit_buf[1]);
 
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM;
-    resInfo.info = (void *)&number;
-    resInfo.infoSize = sizeof(int);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_NUM;
+    resInfo->info = (void *)&number;
+    resInfo->infoSize = sizeof(int);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
 
     return 0;
 }
@@ -604,12 +633,17 @@ int protocol_gw1376_AFN10_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata)
             // dzlog_info("delayLevel : [%d] listenSignal : [%d]  phase : [%d] proType : [%d]", acqFilesInfo.fileInfos->delayLevel, acqFilesInfo.fileInfos->listenSignal, acqFilesInfo.fileInfos->phase, acqFilesInfo.fileInfos->proType);
         }
     }
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO;
-    resInfo.info = (void *)&acqFilesInfo;
-    resInfo.infoSize = sizeof(ACQ_FILES_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_READ_SUBNODE_INFO;
+    resInfo->info = (void *)&acqFilesInfo;
+    resInfo->infoSize = sizeof(ACQ_FILES_INFO);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
 
@@ -847,12 +881,17 @@ int protocol_gw1376_AFN11_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
     dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
     // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
     //   hdzlog_info(precv->apply_region.unit_buf, 1);
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
-    resInfo.info = (void *)&afnInfo;
-    resInfo.infoSize = sizeof(AFN00_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_ADD_SUBNODE;
+    resInfo->info = (void *)&afnInfo;
+    resInfo->infoSize = sizeof(AFN00_INFO);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
 
     return 0;
 }
@@ -902,12 +941,17 @@ int protocol_gw1376_AFN11_Fn02_up(PROTOCOL_GW1376_2_DATA *pdata)
     dzlog_info("AFN00_INFO->AFn : [%d]  AFN00_INFO->Fn : [%d]  afnInfo->result : [%d]", afnInfo.AFN, afnInfo.Fn, afnInfo.result);
     // dzlog_info("afnInfo->result : [%d]", afnInfo.result);
     //   hdzlog_info(precv->apply_region.unit_buf, 1);
-    RES_INFO resInfo;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE;
-    resInfo.info = (void *)&afnInfo;
-    resInfo.infoSize = sizeof(AFN00_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_ROUTE_DEL_SUBNODE;
+    resInfo->info = (void *)&afnInfo;
+    resInfo->infoSize = sizeof(AFN00_INFO);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
 
     return 0;
 }
@@ -982,22 +1026,35 @@ int protocol_gw1376_AFNF1_Fn01_up(PROTOCOL_GW1376_2_DATA *pdata)
         dzlog_notice("%s AFN or Fn error", __FUNCTION__);
         return -1;
     }
+    // dzlog_info("=================================>444444444444");
+    CONCURRENT_INFO *concurrentInfo = CreateConcurrentInfo();
+    if (concurrentInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    concurrentInfo->proType = papply_region->unit_buf[0];
 
-    CONCURRENT_INFO concurrentInfo = {0};
-    concurrentInfo.proType = papply_region->unit_buf[0];
+    // int bufLen = MAKEWORD(papply_region->unit_buf[1], papply_region->unit_buf[2]);
+    int bufLen = papply_region->unit_len - 3;
+    concurrentInfo->bufLen = bufLen;
 
-    int bufLen = MAKEWORD(papply_region->unit_buf[1], papply_region->unit_buf[2]);
-    concurrentInfo.bufLen = bufLen;
-    // dzlog_info("proType : [%d] bufLen : [%d] ", concurrentInfo.proType, bufLen);
-    memcpy(concurrentInfo.buffer, papply_region->unit_buf + 3, bufLen);
-    memcpy(concurrentInfo.addr, precv->addr_region.src, sizeof(concurrentInfo.addr));
-    // hdzlog_info(concurrentInfo.buffer, bufLen);
-    RES_INFO resInfo;
-    resInfo.isReport = true;
-    resInfo.index = precv->recvIndex;
-    resInfo.gw13762DataType = GW1376_2_DATA_TYPE_CONCURRENT_METER_READING;
-    resInfo.info = (void *)&concurrentInfo;
-    resInfo.infoSize = sizeof(CONCURRENT_INFO);
-    ListAddNode(precv->res_data_head, (void *)&resInfo, sizeof(RES_INFO));
+    memcpy(concurrentInfo->buffer, papply_region->unit_buf + 3, bufLen);
+    memcpy(concurrentInfo->addr, precv->addr_region.src, sizeof(concurrentInfo->addr));
+
+    RES_INFO *resInfo = CreateResInfo();
+    if (resInfo == NULL)
+    {
+        dzlog_error("malloc failed!");
+        return -1;
+    }
+    resInfo->isReport = true;
+    resInfo->index = precv->recvIndex;
+    resInfo->gw13762DataType = GW1376_2_DATA_TYPE_CONCURRENT_METER_READING;
+    resInfo->info = (void *)concurrentInfo;
+    resInfo->infoSize = sizeof(CONCURRENT_INFO);
+    dzlog_info("precv->recvIndex : [%d] proType : [%d] bufLen : [%d] ", precv->recvIndex, concurrentInfo->proType, bufLen);
+    hdzlog_info(concurrentInfo->buffer, bufLen);
+    protocol_gw1376_res_ListAddNode(pdata, (void *)resInfo, sizeof(RES_INFO));
     return 0;
 }
