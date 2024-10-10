@@ -121,7 +121,7 @@ void AppControl::serialSendThreadFunc()
     {
         len = 0;
         memset(buf, 0, PROTOCOL_BUF_LEN);
-        usleep(200 * 1000);
+        usleep(20 * 1000);
 
         if (!m_hplcPort->devNodeExist())
         {

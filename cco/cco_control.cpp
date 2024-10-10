@@ -4,6 +4,7 @@
 #include "protocol_gw1376_2.h"
 #include "common_utils.h"
 #include "zlog.h"
+#include "base64.h"
 
 #include <array>
 #include <string>
@@ -640,14 +641,16 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         zlog_error(m_logc, "cJson parse error");
         return -1;
     }
-    std::string base64Data = decode_base64((unsigned char *)(dataCJSON->valuestring), strlen(dataCJSON->valuestring));
-    char base64DataBuf[2048];
-    char tmpBuf[2048];
-    sprintf(tmpBuf, "%s", base64Data.c_str());
-    // printf("String: %s\n", tmpBuf); // 输出 "Hello"
-    int bufLen;
-    stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
-    hdzlog_info(base64DataBuf, bufLen);
+    char proto_buf[2048];
+    int proto_len;
+    proto_len = base64_decode(dataCJSON->valuestring, strlen(dataCJSON->valuestring), (unsigned char *)proto_buf);
+    // char base64DataBuf[2048];
+    //  char tmpBuf[2048];
+    //  sprintf(tmpBuf, "%s", base64Data.c_str());
+    //  printf("String: %s\n", tmpBuf); // 输出 "Hello"
+
+    // stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
+    hdzlog_info(proto_buf, proto_len);
 
     int gw13762Index = 0;
 
@@ -713,13 +716,14 @@ int CcoControl::parseActionConCurrent(std::string topic, std::string message)
         sendData[index] = 0;
         index++;
 
-        sendData[index] = bufLen & 0xff;
+        sendData[index] = proto_len & 0xff;
         index++;
-        sendData[index] = bufLen >> 8 & 0xff;
+        sendData[index] = proto_len >> 8 & 0xff;
         index++;
 
-        memcpy(sendData + index, base64DataBuf, bufLen);
-        index += bufLen;
+        // memcpy(sendData + index, base64DataBuf, bufLen);
+        memcpy(sendData + index, proto_buf, proto_len);
+        index += proto_len;
 
         memcpy(data.buf, sendData, index);
         data.len = index;
@@ -926,14 +930,16 @@ int CcoControl::parseActionBroadcastCmd(std::string topic, std::string message)
         zlog_error(m_logc, "cJson parse error");
         return -1;
     }
-    std::string base64Data = decode_base64((unsigned char *)(dataCJSON->valuestring), strlen(dataCJSON->valuestring));
-    char base64DataBuf[2048];
-    char tmpBuf[2048];
-    sprintf(tmpBuf, "%s", base64Data.c_str());
-    // printf("String: %s\n", tmpBuf); // 输出 "Hello"
-    int bufLen;
-    stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
-    hdzlog_info(base64DataBuf, bufLen);
+    char proto_buf[2048];
+    int proto_len;
+    proto_len = base64_decode(dataCJSON->valuestring, strlen(dataCJSON->valuestring), (unsigned char *)proto_buf);
+    // char base64DataBuf[2048];
+    //  char tmpBuf[2048];
+    //  sprintf(tmpBuf, "%s", base64Data.c_str());
+    //  printf("String: %s\n", tmpBuf); // 输出 "Hello"
+
+    // stringToHexArray(tmpBuf, base64DataBuf, &bufLen);
+    hdzlog_info(proto_buf, proto_len);
 
     GW13762_TASK_DATA data;
     memset(&data, 0, sizeof(GW13762_TASK_DATA));
@@ -941,9 +947,10 @@ int CcoControl::parseActionBroadcastCmd(std::string topic, std::string message)
     data.ismanu_index = false;
 
     data.buf[0] = proType->valueint;
-    data.buf[1] = bufLen;
-    memcpy(&data.buf[2], base64DataBuf, bufLen);
-    data.len = bufLen + 2;
+    data.buf[1] = proto_len;
+    // memcpy(&data.buf[2], base64DataBuf, bufLen);
+    memcpy(&data.buf[2], proto_buf, proto_len);
+    data.len = proto_len + 2;
     int gw13762Index = gw13762_task_push(ptask, &data);
     // protocol_gw1376_2_data_set_send_task_data(m_pdata, &data);
     if (gw13762Index < 0)
@@ -1006,13 +1013,11 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         cJSON_AddItemToObject(root, "acqAddr", cJSON_CreateString(strAddr));
         cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(concurrentInfo->proType));
 
-        char *str = (char *)malloc((concurrentInfo->bufLen * 2 + 1) * sizeof(char));
-
-        hexArrayToString(concurrentInfo->buffer, concurrentInfo->bufLen, str);
-        std::string encodeBuf = encode_base64((unsigned char *)str, concurrentInfo->bufLen * 2);
-        cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
-        free(str);
-
+        char outStr[3096] = {0};
+        int outStrLen;
+        outStrLen = base64_encode((unsigned char *)concurrentInfo->buffer, concurrentInfo->bufLen, outStr);
+        dzlog_info("encodeBuf : [%s]", outStr);
+        cJSON_AddItemToObject(root, "data", cJSON_CreateString(outStr));
         m_concurrentRes.erase(std::string(strAddr));
         dzlog_info("m_concurrentRes 并发采集地址擦除 [%s]", strAddr);
 
@@ -1027,11 +1032,12 @@ int CcoControl::packSendMqttMsg(void *data, int dataSize)
         cJSON_AddItemToObject(root, "devType", cJSON_CreateNumber(staEventInfo->staDevType));
         cJSON_AddItemToObject(root, "proType", cJSON_CreateNumber(staEventInfo->proType));
 
-        char *str = (char *)malloc((staEventInfo->bufferLen * 2 + 1) * sizeof(char));
-        hexArrayToString(staEventInfo->buffer, staEventInfo->bufferLen, str);
-        std::string encodeBuf = encode_base64((unsigned char *)str, staEventInfo->bufferLen * 2);
-        cJSON_AddItemToObject(root, "data", cJSON_CreateString(encodeBuf.c_str()));
-        free(str);
+        char outStr[3096] = {0};
+        int outStrLen;
+        outStrLen = base64_encode((unsigned char *)staEventInfo->buffer, staEventInfo->bufferLen, outStr);
+        dzlog_info("encodeBuf : [%s]", outStr);
+        // std::string encodeBuf = encode_base64((unsigned char *)staEventInfo->buffer, staEventInfo->bufferLen);
+        cJSON_AddItemToObject(root, "data", cJSON_CreateString(outStr));
     }
     else
     {
